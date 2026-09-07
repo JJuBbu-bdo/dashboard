@@ -27,7 +27,7 @@ body{background:#080d18}
       <i class="fa-solid fa-chart-line text-indigo-400"></i>
       <h1 class="text-2xl font-bold">Game Market Intelligence</h1>
     </div>
-    <p class="text-xs muted mt-1">Google Play 시장 모니터링 · Today Snapshot</p>
+    <p class="text-xs muted mt-1">Google Play 시장 모니터링</p>
   </div>
   <div class="flex items-center gap-2">
     <span id="todayLabel" class="text-xs muted"></span>
@@ -63,11 +63,10 @@ body{background:#080d18}
 <!-- DASHBOARD -->
 <div id="view-dashboard" class="space-y-5">
 
-  <section>
+  <section class="mb-5">
     <div class="flex items-end justify-between mb-3">
       <div>
-        <h2 class="text-base font-semibold">Today</h2>
-        <p class="text-xs muted mt-1">Daily_스냅샷 기준 오늘의 시장 요약</p>
+        <h2 class="text-base font-semibold">Today Market Summary</h2>
       </div>
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
@@ -142,28 +141,6 @@ body{background:#080d18}
     </div>
   </section>
 
-  <section class="card rounded-xl p-5">
-    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
-      <div>
-        <h2 class="font-semibold">매출 순위 추이</h2>
-        <p id="chartDescription" class="text-xs muted mt-1">-</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <select id="trendDays" onchange="renderTrend()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs">
-          <option value="14">최근 14일</option>
-          <option value="30" selected>최근 30일</option>
-          <option value="60">최근 60일</option>
-          <option value="90">최근 90일</option>
-        </select>
-        <input id="chartFilterInput" placeholder="게임명 검색 후 Enter"
-          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-60">
-        <button onclick="applyChartFilter()" class="bg-slate-700 hover:bg-slate-600 rounded-lg px-3 py-2 text-xs">적용</button>
-        <button onclick="clearChartFilter()" class="bg-slate-800 hover:bg-slate-700 rounded-lg px-3 py-2 text-xs">초기화</button>
-      </div>
-    </div>
-    <div class="h-[360px]"><canvas id="rankChart"></canvas></div>
-  </section>
-
 </div>
 
 <!-- SEARCH VIEW -->
@@ -172,7 +149,7 @@ body{background:#080d18}
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
       <div>
         <h2 class="font-semibold">타이틀 순위 검색</h2>
-        <p class="text-xs muted mt-1">게임명을 검색해 인기·매출 순위 추이를 확인하고, 두 타이틀을 비교할 수 있습니다</p>
+        <p class="text-xs muted mt-1">게임명을 검색해 인기·매출 순위 추이를 확인하고 비교할 수 있습니다. (미검색 시 매출 Top 10 노출)</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer">
@@ -236,7 +213,7 @@ body{background:#080d18}
 </main>
 
 <footer class="text-[11px] muted text-center py-5">
-  Google Sheets 기반 · Today = Daily_스냅샷
+  Google Sheets 기반 대시보드
 </footer>
 </div>
 
@@ -252,8 +229,6 @@ const SHEETS = {
 
 const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
 let currentView='dashboard';
-let chartInstance=null;
-let chartFilter='';
 
 const aliases={
   date:['날짜','일자','date','수집일','기준일'],
@@ -291,11 +266,25 @@ function schema(data){
 
 function cleanValue(v){
   if(v===null||v===undefined)return '';
-  // 날짜/숫자 타입 셀은 v(원본값)이 "Date(2026,8,7)" 같은 raw 인코딩이라
-  // f(화면 표시용 포맷 문자열)를 우선 사용해야 한다. f가 없는 순수 텍스트
-  // 셀만 v로 대체한다.
-  if(typeof v==='object')return (v.f!==undefined&&v.f!==null&&v.f!=='')?v.f:(v.v??'');
-  return String(v).trim();
+  let val = '';
+  
+  if(typeof v==='object'){
+    val = (v.f!==undefined&&v.f!==null&&v.f!=='') ? v.f : (v.v??'');
+  } else {
+    val = String(v).trim();
+  }
+
+  // Date(YYYY,M,D) 원시 문자열을 YYYY-MM-DD로 변환
+  if (typeof val === 'string' && val.startsWith('Date(')) {
+    const m = val.match(/Date\((\d+),(\d+),(\d+)/);
+    if (m) {
+      const yy = m[1];
+      const mm = String(Number(m[2]) + 1).padStart(2, '0');
+      const dd = String(m[3]).padStart(2, '0');
+      return `${yy}-${mm}-${dd}`;
+    }
+  }
+  return val;
 }
 
 function parseGviz(text){
@@ -310,7 +299,7 @@ function parseGviz(text){
     return arr;
   });
 
-  // 컬럼명이 A, B, C 등으로만 반환된 경우 데이터의 첫 행을 헤더로 사용
+  // 헤더가 A, B, C 등 기본 아이디로 잡혔다면 첫 행을 헤더로 승격
   if(cols.length > 0 && cols.every(c => /^[A-Z]+$/.test(c)) && rows.length > 0) {
     cols = rows.shift();
   }
@@ -318,10 +307,6 @@ function parseGviz(text){
   return {cols,rows};
 }
 
-// headers:1  -> 시트 1행을 강제로 헤더로 인식시켜 컬럼명을 확실히 가져온다.
-//               (자동 감지에 실패하면 헤더가 A/B/C.. 로 나오는 문제의 원인이었음)
-// headers:0  -> Daily_스냅샷처럼 표 형태가 아닌 리포트형 시트는 1행부터
-//               그대로 좌표 기반으로 읽어야 하므로 헤더 승격을 끈다.
 async function fetchSheetData(sheetName, headers=1){
   const url=`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json;headers:${headers}&sheet=${encodeURIComponent(sheetName)}`;
   const res=await fetch(url,{cache:'no-store'});
@@ -352,18 +337,6 @@ function setText(id,v){document.getElementById(id).textContent=v;}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-// -----------------------------------------------------------------
-// Daily_스냅샷 전용 파서.
-// 이 시트는 일반 DB 시트와 달리 "리포트형" 고정 레이아웃이라
-// 컬럼명 자동 인식이 아니라 좌표(행/열) 기반으로 읽는다.
-// 실제 구조(0-index, headers:0으로 가져온 rows 기준):
-//   행0(시트1행): B='■ 일간 인기순위', H='■ 일간 매출순위', L='기준일', M=날짜값
-//   행2(시트3행): 헤더 (순위/게임명/장르/개발사/순위변화)
-//   행3~12(시트4~13행): 인기 TOP10(B~F), 매출 TOP10(H~L)
-//   행16(시트17행): 헤더 (신규진입 B~E / 급상승 H~J / 급하락 K~M)
-//   행17~(시트18행~): 신규진입, 급상승, 급하락 데이터 (이름이 빌 때까지)
-//   행25~(시트26행~): 장르 비중 (인기: B,C / 매출: E,F)
-// -----------------------------------------------------------------
 function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
 
 function readRankBlock(rows,startRow,cols,maxRows){
@@ -394,9 +367,6 @@ function readGenreBlock(rows,startRow,nameCol,countCol,maxRows){
   return out;
 }
 
-// 절대 행 번호 대신, 시트에 실제로 적힌 라벨 텍스트를 찾아서 그 상대 위치로
-// 블록을 읽는다. gviz의 headers 파라미터 처리나 시트 편집으로 행이 한두 줄
-// 밀려도(예: 빈 줄 추가/삭제) 라벨을 기준으로 다시 찾기 때문에 안전하다.
 function findRowIndex(rows,matchText,fromRow=0){
   for(let r=fromRow;r<rows.length;r++){
     const row=rows[r]||[];
@@ -419,18 +389,16 @@ function parseSnapshotSheet(data){
     asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';
   }
 
-  // '■ 일간 인기순위 ...' 라벨 행 기준: 라벨(+0) → 빈 줄(+1) → 헤더(+2) → 데이터 시작(+3)
   const topRow=findRowIndex(rows,'일간 인기순위');
+  // 오프셋 +3을 +2로 수정하여 1위가 잘리지 않도록 조치함
   const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
   const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
 
-  // '■ 인기순위(신규 진입)' / '■ 매출 급상승' / '■ 매출 급하락'은 같은 행에 나란히 있음
   const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
   const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:3,publisher:4},10):[];
   const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:7,name:8,change:9},10):[];
   const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:10,name:11,change:12},10):[];
 
-  // 'TOP100 장르 비중(인기순)' / '(매출순)'은 라벨(+0) → count 라벨(+1) → 데이터 시작(+2)
   const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
   const popularGenre=popGenreRow>=0?readGenreBlock(rows,popGenreRow+2,1,2,30):[];
   const salesGenreRow=findRowIndex(rows,'장르 비중(매출순)',changeRow+1);
@@ -483,7 +451,7 @@ function renderToday(){
   const p=parseSnapshotSheet(snap);
 
   setText('todayLabel',p.asOfDate?`Today · ${p.asOfDate}`:'Today');
-  setText('snapshotDate',p.asOfDate||'Daily_스냅샷');
+  setText('snapshotDate',p.asOfDate||'');
 
   const topPop=p.popularTop10[0],topSales=p.salesTop10[0];
   setText('todayPopularTop',topPop?topPop.name:'-');
@@ -505,56 +473,6 @@ function renderToday(){
   renderGenreBars('salesGenreBars',p.salesGenre);
 }
 
-function renderTrend(){
-  const data=rawStore.sales;if(!data)return;
-  const s=schema(data),allDates=getDates(data);
-  const days=Number(document.getElementById('trendDays').value||30);
-  const dates=allDates.slice(-days);
-
-  let target=[];
-  if(chartFilter){
-    const q=chartFilter.toLowerCase();
-    target=[...new Set(data.rows.filter(r=>gameName(r,data).toLowerCase().includes(q)).map(r=>gameName(r,data)))].slice(0,7);
-  }else{
-    const latest=latestDate(data);
-    target=data.rows.filter(r=>r[s.date]===latest)
-      .sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999))
-      .slice(0,7).map(r=>gameName(r,data));
-  }
-
-  const datasets=target.map(name=>({
-    label:name,
-    data:dates.map(d=>{
-      const row=data.rows.find(r=>r[s.date]===d&&gameName(r,data)===name);
-      return row?rankOf(row,data):null;
-    }),
-    borderWidth:2,pointRadius:2,tension:.25,spanGaps:true
-  }));
-
-  if(chartInstance)chartInstance.destroy();
-  chartInstance=new Chart(document.getElementById('rankChart').getContext('2d'),{
-    type:'line',
-    data:{labels:dates,datasets},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{labels:{color:'#cbd5e1',font:{size:10},boxWidth:18}},
-        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw??'-'}위`}}
-      },
-      scales:{
-        x:{grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8',maxTicksLimit:12}},
-        y:{reverse:true,min:1,suggestedMax:100,grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8'}}
-      }
-    }
-  });
-  setText('chartDescription',chartFilter?`"${chartFilter}" 검색 결과`:`최신일 TOP 7 · 최근 ${dates.length}개 수집일`);
-}
-
-function applyChartFilter(){chartFilter=document.getElementById('chartFilterInput').value.trim();renderTrend();}
-function clearChartFilter(){chartFilter='';document.getElementById('chartFilterInput').value='';renderTrend();}
-document.getElementById('chartFilterInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyChartFilter();});
-
 function switchView(view){
   currentView=view;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
@@ -565,7 +483,6 @@ function switchView(view){
   if(view==='search')renderSearchCharts();
 }
 
-// ---- 순위 검색 탭 ----
 function populateGameNameOptions(){
   const names=new Set();
   (rawStore.sales?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.sales)));
@@ -575,11 +492,14 @@ function populateGameNameOptions(){
   dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
-function topRankedTitle(data){
-  if(!data)return '';
-  const s=schema(data),latest=latestDate(data);
-  const row=data.rows.filter(r=>r[s.date]===latest).sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999))[0];
-  return row?gameName(row,data):'';
+// 매출/인기 상관 없이 넘겨받은 데이터의 가장 최신일자 Top 10 반환
+function top10Titles(data){
+  if(!data) return [];
+  const s = schema(data), latest = latestDate(data);
+  return data.rows.filter(r => r[s.date] === latest)
+    .sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999))
+    .slice(0, 10)
+    .map(r => gameName(r, data));
 }
 
 let searchPopularChartInst=null, searchSalesChartInst=null;
@@ -590,6 +510,7 @@ function drawSearchChart(canvasId,prevInstance,data,titles,colors){
   const s=schema(data),dates=getDates(data);
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t,
+    clip: false, // 선과 포인트가 차트 상단 여백에서 잘리지 않도록
     data:dates.map(d=>{
       const row=data.rows.find(r=>r[s.date]===d&&gameName(r,data)===t);
       return row?rankOf(row,data):null;
@@ -603,6 +524,7 @@ function drawSearchChart(canvasId,prevInstance,data,titles,colors){
     type:'line',
     data:{labels:dates,datasets},
     options:{
+      layout: { padding: { top: 15 } }, // 차트 상단에 여백 15px 추가하여 1위 잘림 방지
       responsive:true,maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
       plugins:{
@@ -628,14 +550,17 @@ function renderSearchCharts(){
   document.getElementById('searchPopularWrap').classList.toggle('hidden',!showPop);
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
 
-  const colors=['#818cf8','#fbbf24'];
+  // Top 10을 커버할 수 있도록 색상 배열을 10개로 넉넉하게 지정
+  const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
 
   if(showPop){
-    const popTitles=titles.length?titles:[topRankedTitle(rawStore.popular)];
+    // 검색어가 없으면 매출 기준 Top 10 노출 (인기 차트에도 매출 Top 10 게임들의 인기 순위를 보여줌)
+    const popTitles=titles.length ? titles : top10Titles(rawStore.sales);
     searchPopularChartInst=drawSearchChart('searchPopularChart',searchPopularChartInst,rawStore.popular,popTitles,colors);
   }
   if(showSales){
-    const salesTitles=titles.length?titles:[topRankedTitle(rawStore.sales)];
+    // 검색어가 없으면 매출 기준 Top 10 노출
+    const salesTitles=titles.length ? titles : top10Titles(rawStore.sales);
     searchSalesChartInst=drawSearchChart('searchSalesChart',searchSalesChartInst,rawStore.sales,salesTitles,colors);
   }
 }
@@ -684,7 +609,6 @@ function filterCurrentTable(){
   if(q)rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
   if(s.rank>=0)rows=rows.slice().sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999));
 
-  // '증감수치'는 내부 계산용 컬럼이라 화면에 노출하지 않는다.
   const hidden=data.cols.map(c=>['증감수치','증감','change'].includes(norm(c)));
   const visibleIndexes=data.cols.map((_,i)=>i).filter(i=>!hidden[i]);
 
@@ -712,7 +636,7 @@ async function fetchAllData(){
       fetchSheetData(SHEETS.sales,1),
       fetchSheetData(SHEETS.popular,1),
       fetchSheetData(SHEETS.newReleases,1),
-      fetchSheetData(SHEETS.snapshot,0)   // 리포트형 시트라 헤더 승격을 끈다
+      fetchSheetData(SHEETS.snapshot,0) 
     ]);
     rawStore.sales=sales;
     rawStore.popular=popular;
@@ -720,7 +644,6 @@ async function fetchAllData(){
     rawStore.snapshot=snapshot;
 
     renderToday();
-    renderTrend();
     populateGameNameOptions();
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
