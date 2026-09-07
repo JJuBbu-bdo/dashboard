@@ -199,15 +199,18 @@ body{background:#080d18}
         <h2 id="dbTitle" class="font-semibold">DB</h2>
         <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
       </div>
-      <div class="flex gap-2 items-center">
+      <div class="flex flex-wrap gap-2 items-center">
         <label id="mobileFilterWrap" class="hidden items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer text-slate-300 hover:bg-slate-700 transition-colors">
           <input type="checkbox" id="mobileFilter" onchange="filterCurrentTable()" class="accent-indigo-500"> 모바일(멀티 플랫폼)만 보기
         </label>
+        
+        <!-- 연도/월/일 개별 셀렉트박스 영역 -->
+        <select id="filterYear" onchange="onYearChange()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"></select>
+        <select id="filterMonth" onchange="onMonthChange()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"></select>
+        <select id="filterDay" onchange="filterCurrentTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"></select>
+
         <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
-          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
-        <!-- 연/월/일 및 연/월 선택 셀렉트박스 -->
-        <select id="tableDate" onchange="filterCurrentTable()"
-          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
+          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-56 max-w-full">
       </div>
     </div>
     <div class="px-4 py-3 border-b border-slate-800 flex justify-between">
@@ -608,120 +611,178 @@ function renderSearchCharts(){
   if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,titles.length?titles:top10Titles(rawStore.sales),colors);
 }
 
-// ---- 매출/인기 DB: 연도 > 월 > 일 3단계 계층 구조 생성 (디폴트: 오늘 일자) ----
+// ---- 매출/인기 DB: [연도] [월] [일] 3개 드롭다운 동기화 로직 ----
 function setupDateSelect(){
-  const data=rawStore[currentView], select=document.getElementById('tableDate');
-  if(!data){select.innerHTML='';return;}
-  const dates=getDates(data).reverse(); // 최신순
+  const data = rawStore[currentView];
+  if(!data) return;
+  const dates = getDates(data).reverse(); // 최신순
 
-  // 연도별 -> 월별 -> 일자별 중첩 객체 구성
-  const tree={};
-  dates.forEach(d=>{
-    const y=d.slice(0,4);
-    const m=d.slice(5,7);
-    if(!tree[y]) tree[y]={};
-    if(!tree[y][m]) tree[y][m]=[];
-    tree[y][m].push(d);
+  const ySet = new Set();
+  const ymMap = {}; // { '2026': ['09', '08'] }
+  const ymdMap = {}; // { '2026-09': ['2026-09-07', '2026-09-06'] }
+
+  dates.forEach(d => {
+    const y = d.slice(0, 4);
+    const m = d.slice(5, 7);
+    ySet.add(y);
+    if(!ymMap[y]) ymMap[y] = new Set();
+    ymMap[y].add(m);
+
+    const ym = `${y}-${m}`;
+    if(!ymdMap[ym]) ymdMap[ym] = [];
+    ymdMap[ym].push(d);
   });
 
-  let html='<option value="">전체 날짜</option>';
-  for(const y of Object.keys(tree).sort().reverse()){
-    for(const m of Object.keys(tree[y]).sort().reverse()){
-      html+=`<optgroup label="[${y}년 ${Number(m)}월]">`;
-      tree[y][m].forEach(d=>{
-        html+=`<option value="${escapeAttr(d)}">&nbsp;&nbsp;└ ${escapeHtml(d)}</option>`;
-      });
-      html+=`</optgroup>`;
-    }
-  }
-  select.innerHTML=html;
+  const years = [...ySet].sort().reverse();
+  const ySel = document.getElementById('filterYear');
+  ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
-  // 디폴트값: 투데이(갱신일) 혹은 최신일자
-  const snap=rawStore.snapshot;
-  let todayStr='';
+  // 투데이(갱신일) 기준 혹은 최신일자 추출
+  const snap = rawStore.snapshot;
+  let todayStr = '';
   if(snap){
-    const p=parseSnapshotSheet(snap);
-    if(p.asOfDate) todayStr=p.asOfDate;
+    const p = parseSnapshotSheet(snap);
+    if(p.asOfDate) todayStr = p.asOfDate;
   }
-  if(!todayStr) todayStr=latestDate(data);
+  if(!todayStr) todayStr = latestDate(data);
+  if(!dates.includes(todayStr)) todayStr = dates[0] || '';
 
-  if(dates.includes(todayStr)){
-    select.value=todayStr;
-  } else if(dates.length){
-    select.value=dates[0];
-  }
+  const targetY = todayStr ? todayStr.slice(0, 4) : years[0];
+  const targetM = todayStr ? todayStr.slice(5, 7) : '';
+  const targetD = todayStr;
+
+  ySel.value = targetY;
+  updateMonthSelect(targetY, targetM, targetD);
 }
 
-// ---- 신작 정보 DB: 연도 > 월 2단계 계층 구조 생성 (디폴트: 오늘 기준 월) ----
-function setupNewReleasesDateSelect(){
-  const data=rawStore.newReleases, select=document.getElementById('tableDate');
-  if(!data){select.innerHTML='';return;}
-  const s=schema(data);
-  if(s.releaseDate<0){select.innerHTML='<option value="">전체 기간</option>';return;}
+function updateMonthSelect(year, selectedM='', selectedD=''){
+  const data = rawStore[currentView];
+  const dates = getDates(data).reverse();
+  const mSet = new Set();
 
-  const months=[...new Set(data.rows.map(r=>{
-    const val=String(r[s.releaseDate]||'');
-    const m=val.match(/(\d{4})[^0-9]?(\d{1,2})/);
+  dates.forEach(d => {
+    if(d.startsWith(year)) {
+      mSet.add(d.slice(5, 7));
+    }
+  });
+
+  const months = [...mSet].sort().reverse();
+  const mSel = document.getElementById('filterMonth');
+  mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
+
+  const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
+  mSel.value = targetM;
+  updateDaySelect(year, targetM, selectedD);
+}
+
+function updateDaySelect(year, month, selectedD=''){
+  const data = rawStore[currentView];
+  const dates = getDates(data).reverse();
+  
+  const filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
+  const dSel = document.getElementById('filterDay');
+  dSel.innerHTML = filteredDays.map(d => `<option value="${d}">${d}</option>`).join('');
+
+  const targetD = (selectedD && filteredDays.includes(selectedD)) ? selectedD : filteredDays[0];
+  if(targetD) dSel.value = targetD;
+  filterCurrentTable();
+}
+
+function onYearChange(){
+  const y = document.getElementById('filterYear').value;
+  updateMonthSelect(y);
+}
+
+function onMonthChange(){
+  const y = document.getElementById('filterYear').value;
+  const m = document.getElementById('filterMonth').value;
+  updateDaySelect(y, m);
+}
+
+
+// ---- 신작 정보 DB: [연도] [월] 2개 드롭다운 동기화 로직 ----
+function setupNewReleasesDateSelect(){
+  const data = rawStore.newReleases;
+  if(!data) return;
+  const s = schema(data);
+  if(s.releaseDate < 0) return;
+
+  const months = [...new Set(data.rows.map(r => {
+    const val = String(r[s.releaseDate]||'');
+    const m = val.match(/(\d{4})[^0-9]?(\d{1,2})/);
     return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}` : '';
   }).filter(Boolean))].sort().reverse();
 
-  // 연도별 -> 월별 중첩 구조 구성
-  const tree={};
-  months.forEach(ym=>{
-    const [y, m]=ym.split('-');
-    if(!tree[y]) tree[y]=[];
-    tree[y].push(m);
+  const ySet = new Set();
+  const ymMap = {};
+  months.forEach(ym => {
+    const y = ym.split('-')[0];
+    const m = ym.split('-')[1];
+    ySet.add(y);
+    if(!ymMap[y]) ymMap[y] = [];
+    ymMap[y].push(m);
   });
 
-  let html='<option value="">전체 기간</option>';
-  for(const y of Object.keys(tree).sort().reverse()){
-    html+=`<optgroup label="[${y}년 신작]">`;
-    tree[y].sort().reverse().forEach(m=>{
-      const ym=`${y}-${m}`;
-      html+=`<option value="${escapeAttr(ym)}">&nbsp;&nbsp;└ ${Number(m)}월</option>`;
-    });
-    html+=`</optgroup>`;
-  }
-  select.innerHTML=html;
+  const years = [...ySet].sort().reverse();
+  const ySel = document.getElementById('filterYear');
+  ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
-  // 디폴트값: 투데이(갱신일)의 월 기준 (예: '2026-09')
-  const snap=rawStore.snapshot;
-  let todayYM='';
+  const snap = rawStore.snapshot;
+  let todayYM = '';
   if(snap) {
-    const p=parseSnapshotSheet(snap);
-    if(p.asOfDate) todayYM=p.asOfDate.slice(0,7);
+    const p = parseSnapshotSheet(snap);
+    if(p.asOfDate) todayYM = p.asOfDate.slice(0, 7);
   }
-  if(!todayYM) todayYM=new Date().toISOString().slice(0,7);
+  if(!todayYM) todayYM = new Date().toISOString().slice(0, 7);
 
-  if(months.includes(todayYM)) {
-    select.value = todayYM;
-  } else if(months.length > 0) {
-    select.value = months[0];
-  } else {
-    select.value = '';
-  }
+  const targetY = todayYM.slice(0, 4);
+  const targetM = todayYM.slice(5, 7);
+
+  ySel.value = years.includes(targetY) ? targetY : years[0];
+  updateNewReleasesMonthSelect(ySel.value, targetM);
 }
 
-function filterCurrentTable(){
-  const data=rawStore[currentView];
-  if(!data)return;
-  const s=schema(data), q=document.getElementById('tableSearch').value.toLowerCase().trim(), dateVal=document.getElementById('tableDate').value;
-  let rows=data.rows;
-  
-  if(dateVal) {
-    if(currentView === 'newReleases') {
-      rows=rows.filter(r=>{
-        const val=String(r[s.releaseDate]||'');
-        return val.startsWith(dateVal);
-      });
-    } else {
-      rows=rows.filter(r=>r[s.date]===dateVal);
-    }
-  }
+function updateNewReleasesMonthSelect(year, selectedM=''){
+  const data = rawStore.newReleases;
+  const s = schema(data);
+  const months = [...new Set(data.rows.map(r => {
+    const val = String(r[s.releaseDate]||'');
+    const m = val.match(/(\d{4})[^0-9]?(\d{1,2})/);
+    return m && m[1] === year ? String(m[2]).padStart(2,'0') : '';
+  }).filter(Boolean))].sort().reverse();
 
-  if(q)rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
-  
+  const mSel = document.getElementById('filterMonth');
+  mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
+
+  const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
+  if(targetM) mSel.value = targetM;
+  filterCurrentTable();
+}
+
+function onNewReleasesYearChange(){
+  const y = document.getElementById('filterYear').value;
+  updateNewReleasesMonthSelect(y);
+}
+
+
+function filterCurrentTable(){
+  const data = rawStore[currentView];
+  if(!data) return;
+  const s = schema(data);
+  const q = document.getElementById('tableSearch').value.toLowerCase().trim();
+  let rows = data.rows;
+
+  const yVal = document.getElementById('filterYear').value;
+  const mVal = document.getElementById('filterMonth').value;
+
   if(currentView === 'newReleases') {
+    const targetYM = `${yVal}-${mVal}`;
+    if(yVal && mVal) {
+      rows = rows.filter(r => {
+        const val = String(r[s.releaseDate]||'');
+        return val.startsWith(targetYM);
+      });
+    }
     const isMobileChecked = document.getElementById('mobileFilter')?.checked;
     if(isMobileChecked && s.platform >= 0) {
       rows = rows.filter(r => {
@@ -729,55 +790,66 @@ function filterCurrentTable(){
         return platformStr.includes('모바일');
       });
     }
+  } else {
+    const dVal = document.getElementById('filterDay').value;
+    if(dVal) {
+      rows = rows.filter(r => r[s.date] === dVal);
+    }
   }
 
-  if(s.rank>=0)rows=rows.slice().sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999));
+  if(q) rows = rows.filter(r => r.some(c => String(c??'').toLowerCase().includes(q)));
+  if(s.rank >= 0) rows = rows.slice().sort((a,b) => (rankOf(a,data)||999999) - (rankOf(b,data)||999999));
   
-  const hidden=data.cols.map(c=>['증감수치','증감','change'].includes(norm(c)));
-  const visibleIndexes=data.cols.map((_,i)=>i).filter(i=>!hidden[i]);
+  const hidden = data.cols.map(c => ['증감수치','증감','change'].includes(norm(c)));
+  const visibleIndexes = data.cols.map((_,i) => i).filter(i => !hidden[i]);
 
-  document.getElementById('tableHead').innerHTML='<tr>'+visibleIndexes.map(i=>`<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${escapeHtml(data.cols[i]||'-')}</th>`).join('')+'</tr>';
-  document.getElementById('tableBody').innerHTML=rows.length?rows.map(r=>{
+  document.getElementById('tableHead').innerHTML = '<tr>' + visibleIndexes.map(i => `<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${escapeHtml(data.cols[i]||'-')}</th>`).join('') + '</tr>';
+  document.getElementById('tableBody').innerHTML = rows.length ? rows.map(r => {
     const gName = gameName(r, data);
-    return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">`+
-    visibleIndexes.map(i=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('')+'</tr>';
-  }).join(''):'<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
+    return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">` +
+    visibleIndexes.map(i => `<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('') + '</tr>';
+  }).join('') : '<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
   
-  setText('tableRowCount',`${rows.length.toLocaleString()}행`);
-  setText('dbDataDate',dateVal?`선택 기준 · ${dateVal}`:`전체 ${data.rows.length.toLocaleString()}행`);
+  setText('tableRowCount', `${rows.length.toLocaleString()}행`);
+  const activeDateLabel = currentView === 'newReleases' ? `${yVal}년 ${Number(mVal)}월` : document.getElementById('filterDay').value;
+  setText('dbDataDate', activeDateLabel ? `선택 기준 · ${activeDateLabel}` : `전체 ${data.rows.length.toLocaleString()}행`);
 }
 
 function renderDatabase(view){
-  const data=rawStore[view];
-  if(!data)return;
-  const search=document.getElementById('tableSearch');
-  if(search) search.placeholder=view==='newReleases'?'게임명 / 퍼블리셔 검색':'게임명 / 장르 / 퍼블리셔 검색';
-  const title={sales:'매출 순위 DB',popular:'인기 순위 DB',newReleases:'신작 정보 DB'}[view];
-  const desc={sales:'일자별 Google Play 매출 순위 원본 데이터',popular:'일자별 Google Play 인기 순위 원본 데이터',newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
-  setText('dbTitle',title); setText('dbDescription',desc);
+  const data = rawStore[view];
+  if(!data) return;
+  const search = document.getElementById('tableSearch');
+  if(search) search.placeholder = view==='newReleases' ? '게임명 / 퍼블리셔 검색' : '게임명 / 장르 / 퍼블리셔 검색';
+  const title = {sales:'매출 순위 DB', popular:'인기 순위 DB', newReleases:'신작 정보 DB'}[view];
+  const desc = {sales:'일자별 Google Play 매출 순위 원본 데이터', popular:'일자별 Google Play 인기 순위 원본 데이터', newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
+  setText('dbTitle', title); setText('dbDescription', desc);
 
   const mobileWrap = document.getElementById('mobileFilterWrap');
+  const fYear = document.getElementById('filterYear');
+  const fMonth = document.getElementById('filterMonth');
+  const fDay = document.getElementById('filterDay');
+
   if(mobileWrap) {
     if(view === 'newReleases') {
       mobileWrap.classList.remove('hidden');
       mobileWrap.classList.add('flex');
+      fDay.classList.add('hidden'); // 신작 정보는 일(day) 숨김
+      fYear.onchange = onNewReleasesYearChange;
+      fMonth.onchange = filterCurrentTable;
+      setupNewReleasesDateSelect();
     } else {
       mobileWrap.classList.add('hidden');
       mobileWrap.classList.remove('flex');
+      fDay.classList.remove('hidden'); // 매출/인기는 일(day) 표시
+      fYear.onchange = onYearChange;
+      fMonth.onchange = onMonthChange;
       const chk = document.getElementById('mobileFilter');
       if(chk) chk.checked = false;
+      setupDateSelect();
     }
   }
 
-  document.getElementById('tableSearch').value='';
-  
-  if(view === 'newReleases') {
-    setupNewReleasesDateSelect();
-  } else {
-    setupDateSelect();
-  }
-  
-  filterCurrentTable();
+  document.getElementById('tableSearch').value = '';
 }
 
 function getMetricsForGame(data, gameNameTarget, recentDays=30){
