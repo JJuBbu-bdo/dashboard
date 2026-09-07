@@ -3,32 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Game Market Intelligence Dashboard</title>
+<title>Game Market Intelligence</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
-  body{background:#0b1120}
-  .card{background:rgba(15,23,42,.82);border:1px solid rgba(71,85,105,.55)}
-  .muted{color:#94a3b8}
-  .scrollbar::-webkit-scrollbar{height:7px;width:7px}.scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
-  .rank-up{color:#34d399}.rank-down{color:#fb7185}.rank-flat{color:#94a3b8}
-  canvas{max-height:360px}
+body{background:#080d18}
+.card{background:rgba(15,23,42,.86);border:1px solid rgba(71,85,105,.5)}
+.muted{color:#94a3b8}
+.tab{font-size:12px;font-weight:600;color:#64748b;padding:10px 15px;border-bottom:2px solid transparent}
+.tab:hover{color:#cbd5e1}.tab.active{color:#818cf8;border-color:#6366f1}
+.rank-up{color:#34d399}.rank-down{color:#fb7185}.rank-flat{color:#94a3b8}
+.scrollbar::-webkit-scrollbar{height:7px;width:7px}.scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
 </style>
 </head>
 
 <body class="text-slate-100 min-h-screen">
-<div class="max-w-[1500px] mx-auto px-4 md:px-6 py-5 space-y-5">
+<div class="max-w-[1500px] mx-auto px-4 md:px-6 py-5">
 
-<header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+<header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
   <div>
     <div class="flex items-center gap-2">
       <i class="fa-solid fa-chart-line text-indigo-400"></i>
       <h1 class="text-2xl font-bold">Game Market Intelligence</h1>
     </div>
-    <p class="text-xs muted mt-1">Google Play 시장 순위 데이터를 한 화면에서 모니터링</p>
+    <p class="text-xs muted mt-1">Google Play 시장 모니터링 · Today Snapshot</p>
   </div>
   <div class="flex items-center gap-2">
+    <span id="todayLabel" class="text-xs muted"></span>
     <span id="syncStatus" class="text-xs px-3 py-1.5 rounded-full bg-slate-800 text-slate-400">초기화 중</span>
     <button id="refreshBtn" onclick="fetchAllData()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold">
       <i class="fa-solid fa-rotate mr-1"></i> 새로고침
@@ -36,286 +38,329 @@
   </div>
 </header>
 
-<!-- KPI -->
-<section class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-  <div class="card rounded-xl p-4">
-    <div class="text-[11px] muted">매출 1위</div>
-    <div id="kpiSalesTop" class="text-lg font-bold mt-2 truncate">-</div>
-    <div id="kpiSalesTopRank" class="text-[11px] text-indigo-300 mt-1">-</div>
+<!-- TOP NAV -->
+<nav class="card rounded-xl mb-5 px-3 overflow-x-auto">
+  <div class="flex items-center gap-1 whitespace-nowrap">
+    <button class="tab active" data-view="dashboard" onclick="switchView('dashboard')">
+      <i class="fa-solid fa-gauge-high mr-1.5"></i> Dashboard
+    </button>
+    <button class="tab" data-view="sales" onclick="switchView('sales')">
+      <i class="fa-solid fa-coins mr-1.5"></i> 매출 순위 DB
+    </button>
+    <button class="tab" data-view="popular" onclick="switchView('popular')">
+      <i class="fa-solid fa-fire mr-1.5"></i> 인기 순위 DB
+    </button>
+    <button class="tab" data-view="newReleases" onclick="switchView('newReleases')">
+      <i class="fa-solid fa-rocket mr-1.5"></i> 월간 신작 DB
+    </button>
+    <button class="tab" data-view="snapshot" onclick="switchView('snapshot')">
+      <i class="fa-solid fa-calendar-day mr-1.5"></i> Daily Snapshot
+    </button>
   </div>
-  <div class="card rounded-xl p-4">
-    <div class="text-[11px] muted">인기 1위</div>
-    <div id="kpiPopularTop" class="text-lg font-bold mt-2 truncate">-</div>
-    <div id="kpiPopularTopRank" class="text-[11px] text-emerald-300 mt-1">-</div>
-  </div>
-  <div class="card rounded-xl p-4">
-    <div class="text-[11px] muted">매출 TOP 100 타이틀</div>
-    <div id="kpiSalesCount" class="text-2xl font-bold mt-2">-</div>
-    <div id="kpiSalesDate" class="text-[11px] muted mt-1">기준일 -</div>
-  </div>
-  <div class="card rounded-xl p-4">
-    <div class="text-[11px] muted">인기 TOP 100 타이틀</div>
-    <div id="kpiPopularCount" class="text-2xl font-bold mt-2">-</div>
-    <div id="kpiPopularDate" class="text-[11px] muted mt-1">기준일 -</div>
-  </div>
-  <div class="card rounded-xl p-4">
-    <div class="text-[11px] muted">월간 신작</div>
-    <div id="kpiNewCount" class="text-2xl font-bold mt-2">-</div>
-    <div id="kpiNewDate" class="text-[11px] muted mt-1">기준일 -</div>
-  </div>
-</section>
+</nav>
 
-<!-- Market Pulse -->
-<section class="card rounded-xl p-5">
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-    <div>
-      <h2 class="font-semibold">시장 변화량</h2>
-      <p class="text-xs muted mt-1">가장 최근 2개 데이터 수집일을 비교합니다.</p>
-    </div>
-    <select id="moverLimit" onchange="renderMovers()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs">
-      <option value="10">TOP 10</option>
-      <option value="20">TOP 20</option>
-    </select>
-  </div>
-  <div id="movers" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2"></div>
-</section>
+<main>
+<!-- DASHBOARD -->
+<div id="view-dashboard" class="space-y-5">
 
-<!-- Trend -->
-<section class="card rounded-xl p-5">
-  <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
-    <div>
-      <h2 class="font-semibold">매출 순위 추이</h2>
-      <p id="chartDescription" class="text-xs muted mt-1">최근 데이터 기준 주요 타이틀</p>
+  <section>
+    <div class="flex items-end justify-between mb-3">
+      <div>
+        <h2 class="text-base font-semibold">Today</h2>
+        <p class="text-xs muted mt-1">Daily_스냅샷 기준 오늘의 시장 요약</p>
+      </div>
+      <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
-    <div class="flex flex-wrap gap-2">
-      <select id="trendDays" onchange="renderTrend()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs">
-        <option value="14">최근 14일</option>
-        <option value="30" selected>최근 30일</option>
-        <option value="60">최근 60일</option>
-        <option value="90">최근 90일</option>
+
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div class="card rounded-xl p-4">
+        <div class="text-[11px] muted">매출 1위</div>
+        <div id="todaySalesTop" class="text-lg font-bold mt-2 truncate">-</div>
+        <div id="todaySalesMeta" class="text-[11px] text-indigo-300 mt-1">-</div>
+      </div>
+      <div class="card rounded-xl p-4">
+        <div class="text-[11px] muted">인기 1위</div>
+        <div id="todayPopularTop" class="text-lg font-bold mt-2 truncate">-</div>
+        <div id="todayPopularMeta" class="text-[11px] text-emerald-300 mt-1">-</div>
+      </div>
+      <div class="card rounded-xl p-4">
+        <div class="text-[11px] muted">오늘 매출 TOP 100</div>
+        <div id="todaySalesCount" class="text-2xl font-bold mt-2">-</div>
+        <div class="text-[11px] muted mt-1">수집 타이틀</div>
+      </div>
+      <div class="card rounded-xl p-4">
+        <div class="text-[11px] muted">오늘 인기 TOP 100</div>
+        <div id="todayPopularCount" class="text-2xl font-bold mt-2">-</div>
+        <div class="text-[11px] muted mt-1">수집 타이틀</div>
+      </div>
+      <div class="card rounded-xl p-4">
+        <div class="text-[11px] muted">이번 달 신작</div>
+        <div id="todayNewCount" class="text-2xl font-bold mt-2">-</div>
+        <div id="todayNewMeta" class="text-[11px] muted mt-1">월간신작DB</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card rounded-xl p-5">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="font-semibold">오늘의 시장 변화</h2>
+        <p class="text-xs muted mt-1">매출 순위 기준 최신 수집일과 직전 수집일 비교</p>
+      </div>
+      <select id="moverLimit" onchange="renderMovers()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs">
+        <option value="10">TOP 10</option>
+        <option value="20">TOP 20</option>
       </select>
-      <input id="chartFilterInput" placeholder="게임명 검색 후 Enter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-60">
-      <button onclick="applyChartFilter()" class="bg-slate-700 hover:bg-slate-600 rounded-lg px-3 py-2 text-xs">적용</button>
-      <button onclick="clearChartFilter()" class="bg-slate-800 hover:bg-slate-700 rounded-lg px-3 py-2 text-xs">초기화</button>
     </div>
-  </div>
-  <div class="h-[360px]"><canvas id="rankChart"></canvas></div>
-</section>
+    <div id="movers" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2"></div>
+  </section>
 
-<!-- Data table -->
-<section class="card rounded-xl overflow-hidden">
-  <div class="flex flex-wrap items-center gap-1 border-b border-slate-800 px-4 pt-3">
-    <button class="tab active" data-tab="sales" onclick="switchTab('sales')">매출 순위</button>
-    <button class="tab" data-tab="popular" onclick="switchTab('popular')">인기 순위</button>
-    <button class="tab" data-tab="newReleases" onclick="switchTab('newReleases')">월간 신작</button>
-  </div>
-  <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800">
-    <div class="flex gap-2 items-center">
-      <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 장르 / 퍼블리셔 검색"
-             class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
-      <select id="tableDate" onchange="filterCurrentTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
+  <section class="card rounded-xl p-5">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="font-semibold">매출 순위 추이</h2>
+        <p id="chartDescription" class="text-xs muted mt-1">-</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <select id="trendDays" onchange="renderTrend()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs">
+          <option value="14">최근 14일</option>
+          <option value="30" selected>최근 30일</option>
+          <option value="60">최근 60일</option>
+          <option value="90">최근 90일</option>
+        </select>
+        <input id="chartFilterInput" placeholder="게임명 검색 후 Enter"
+          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-60">
+        <button onclick="applyChartFilter()" class="bg-slate-700 hover:bg-slate-600 rounded-lg px-3 py-2 text-xs">적용</button>
+        <button onclick="clearChartFilter()" class="bg-slate-800 hover:bg-slate-700 rounded-lg px-3 py-2 text-xs">초기화</button>
+      </div>
     </div>
-    <div id="tableRowCount" class="text-xs muted">-</div>
-  </div>
-  <div class="overflow-auto max-h-[520px] scrollbar">
-    <table class="w-full text-left text-xs">
-      <thead id="tableHead" class="sticky top-0 bg-slate-950 z-10"></thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-  </div>
-</section>
+    <div class="h-[360px]"><canvas id="rankChart"></canvas></div>
+  </section>
 
-<footer class="text-[11px] muted text-center py-2">
-  Google Sheets ID: 1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw
-</footer>
 </div>
 
-<style>
-.tab{font-size:12px;font-weight:600;color:#64748b;padding:10px 14px;border-bottom:2px solid transparent}
-.tab:hover{color:#cbd5e1}.tab.active{color:#818cf8;border-color:#6366f1}
-</style>
+<!-- DATABASE VIEW -->
+<div id="view-database" class="hidden">
+  <section class="card rounded-xl overflow-hidden">
+    <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800">
+      <div>
+        <h2 id="dbTitle" class="font-semibold">DB</h2>
+        <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회</p>
+      </div>
+      <div class="flex gap-2 items-center">
+        <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 장르 / 퍼블리셔 검색"
+          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
+        <select id="tableDate" onchange="filterCurrentTable()"
+          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
+      </div>
+    </div>
+    <div class="px-4 py-3 border-b border-slate-800 flex justify-between">
+      <span id="dbDataDate" class="text-xs muted">-</span>
+      <span id="tableRowCount" class="text-xs muted">-</span>
+    </div>
+    <div class="overflow-auto max-h-[650px] scrollbar">
+      <table class="w-full text-left text-xs">
+        <thead id="tableHead" class="sticky top-0 bg-slate-950 z-10"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+</main>
+
+<footer class="text-[11px] muted text-center py-5">
+  Google Sheets 기반 · DB_매출순위 / DB_인기순위 / 월간신작DB / Daily_스냅샷
+</footer>
+</div>
 
 <script>
 const SPREADSHEET_ID = '1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw';
 
 const SHEETS = {
-  sales: 'DB_매출순위',
-  popular: 'DB_인기순위',
-  newReleases: '월간신작DB'
+  sales:'DB_매출순위',
+  popular:'DB_인기순위',
+  newReleases:'월간신작DB',
+  snapshot:'Daily_스냅샷'
 };
 
-const rawStore = {sales:null, popular:null, newReleases:null};
-let currentTab = 'sales';
-let chartInstance = null;
-let chartFilter = '';
+const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
+let currentView='dashboard';
+let chartInstance=null;
+let chartFilter='';
 
-const aliases = {
-  date: ['날짜','일자','date','수집일','기준일'],
-  rank: ['순위','rank','랭킹','순위값'],
-  name: ['앱이름','게임명','게임이름','앱 이름','앱명','title','name','타이틀'],
-  genre: ['장르','genre','카테고리','category'],
-  publisher: ['퍼블리셔','개발사','회사','publisher','developer'],
-  store: ['스토어','store']
+const aliases={
+  date:['날짜','일자','date','수집일','기준일'],
+  rank:['순위','rank','랭킹','순위값'],
+  name:['앱이름','게임명','게임이름','앱 이름','앱명','title','name','타이틀'],
+  genre:['장르','genre','카테고리','category'],
+  publisher:['퍼블리셔','개발사','회사','publisher','developer'],
+  releaseDate:['출시일','release date','releasedate'],
+  platform:['플랫폼','platform'],
+  releaseType:['출시유형','출시 유형','release type','releasetype']
 };
 
-function norm(v){ return String(v ?? '').trim().toLowerCase().replace(/\\s+/g,''); }
+function norm(v){return String(v??'').trim().toLowerCase().replace(/\\s+/g,'');}
 
-function findCol(cols, type){
-  const a = aliases[type] || [];
-  const normalized = cols.map(norm);
-  for(const alias of a){
-    const i = normalized.indexOf(norm(alias));
-    if(i >= 0) return i;
-  }
+function findCol(cols,type){
+  const arr=(aliases[type]||[]).map(norm);
+  const normalized=cols.map(norm);
+  for(const a of arr){const i=normalized.indexOf(a);if(i>=0)return i;}
   return -1;
 }
 
 function schema(data){
-  const c = data?.cols || [];
+  const c=data?.cols||[];
   return {
-    date: findCol(c,'date'),
-    rank: findCol(c,'rank'),
-    name: findCol(c,'name'),
-    genre: findCol(c,'genre'),
-    publisher: findCol(c,'publisher')
+    date:findCol(c,'date'),
+    rank:findCol(c,'rank'),
+    name:findCol(c,'name'),
+    genre:findCol(c,'genre'),
+    publisher:findCol(c,'publisher'),
+    releaseDate:findCol(c,'releaseDate'),
+    platform:findCol(c,'platform'),
+    releaseType:findCol(c,'releaseType')
   };
 }
 
 function cleanValue(v){
-  if(v === null || v === undefined) return '';
-  if(typeof v === 'object') return v.v ?? v.f ?? '';
+  if(v===null||v===undefined)return '';
+  if(typeof v==='object')return v.v??v.f??'';
   return String(v).trim();
 }
 
 function parseGviz(text){
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if(start < 0 || end < start) throw new Error('Google Sheets 응답 형식을 읽을 수 없습니다.');
-  const json = JSON.parse(text.slice(start,end+1));
-  const cols = (json.table?.cols || []).map(c => c?.label || c?.id || '');
-  const rows = (json.table?.rows || []).map(r => {
-    const cells = r.c || [];
-    const arr = [];
-    for(let i=0;i<cols.length;i++) arr.push(cleanValue(cells[i]));
+  const start=text.indexOf('{'),end=text.lastIndexOf('}');
+  if(start<0||end<start)throw new Error('Google Sheets 응답을 읽을 수 없습니다.');
+  const json=JSON.parse(text.slice(start,end+1));
+  const cols=(json.table?.cols||[]).map(c=>c?.label||c?.id||'');
+  const rows=(json.table?.rows||[]).map(r=>{
+    const cells=r.c||[],arr=[];
+    for(let i=0;i<cols.length;i++)arr.push(cleanValue(cells[i]));
     return arr;
   });
-  return {cols, rows};
+  return {cols,rows};
 }
 
 async function fetchSheetData(sheetName){
-  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
-  const res = await fetch(url, {cache:'no-store'});
-  if(!res.ok) throw new Error(`${sheetName}: HTTP ${res.status}`);
+  const url=`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const res=await fetch(url,{cache:'no-store'});
+  if(!res.ok)throw new Error(`${sheetName}: HTTP ${res.status}`);
   return parseGviz(await res.text());
-}
-
-function getDates(data){
-  const s = schema(data);
-  if(s.date < 0) return [];
-  return [...new Set(data.rows.map(r=>r[s.date]).filter(Boolean))].sort((a,b)=>dateValue(a)-dateValue(b));
 }
 
 function dateValue(v){
   const s=String(v||'');
   const m=s.match(/(\\d{4})[^0-9]?(\\d{1,2})[^0-9]?(\\d{1,2})/);
-  return m ? new Date(+m[1],+m[2]-1,+m[3]).getTime() : Date.parse(s)||0;
+  return m?new Date(+m[1],+m[2]-1,+m[3]).getTime():Date.parse(s)||0;
+}
+
+function getDates(data){
+  const s=schema(data);
+  if(s.date<0)return [];
+  return [...new Set(data.rows.map(r=>r[s.date]).filter(Boolean))]
+    .sort((a,b)=>dateValue(a)-dateValue(b));
 }
 
 function latestDate(data){
-  const ds=getDates(data);
-  return ds[ds.length-1] || '';
+  const ds=getDates(data);return ds[ds.length-1]||'';
 }
-
 function previousDate(data){
-  const ds=getDates(data);
-  return ds.length > 1 ? ds[ds.length-2] : '';
+  const ds=getDates(data);return ds.length>1?ds[ds.length-2]:'';
 }
-
 function latestRows(data){
-  const s=schema(data), d=latestDate(data);
-  if(s.date < 0) return data.rows;
-  return data.rows.filter(r=>r[s.date]===d);
+  const s=schema(data),d=latestDate(data);
+  return s.date<0?data.rows:data.rows.filter(r=>r[s.date]===d);
 }
-
-function rankOf(row,data){
-  const s=schema(data);
-  const n=Number(String(row?.[s.rank] ?? '').replace(/[^0-9.-]/g,''));
-  return Number.isFinite(n) && n>0 ? n : null;
-}
-
 function gameName(row,data){
   const s=schema(data);
-  return s.name>=0 ? String(row[s.name]||'-') : String(row[0]||'-');
+  return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');
 }
+function rankOf(row,data){
+  const s=schema(data);
+  const n=Number(String(row?.[s.rank]??'').replace(/[^0-9.-]/g,''));
+  return Number.isFinite(n)&&n>0?n:null;
+}
+function uniqueNames(rows,data){
+  return new Set(rows.map(r=>gameName(r,data)).filter(Boolean)).size;
+}
+function setText(id,v){document.getElementById(id).textContent=v;}
 
-function setText(id,v){ document.getElementById(id).textContent=v; }
+function renderToday(){
+  const sales=rawStore.sales,pop=rawStore.popular,news=rawStore.newReleases,snap=rawStore.snapshot;
 
-function renderKPIs(){
-  const sales=rawStore.sales, pop=rawStore.popular, news=rawStore.newReleases;
-  const sr=latestRows(sales), pr=latestRows(pop), nr=latestRows(news);
+  // Daily_스냅샷 is the primary Today source. If its schema is not recognizable,
+  // use the latest DB data as a safe fallback.
+  const ss=schema(snap||{cols:[],rows:[]});
+  const snapshotRows=snap?.rows||[];
 
+  let snapshotDate='';
+  if(ss.date>=0)snapshotDate=latestDate(snap);
+  else if(snapshotRows.length)snapshotDate=String(snapshotRows[0][0]||'');
+
+  setText('todayLabel',snapshotDate?`Today · ${snapshotDate}`:'Today');
+  setText('snapshotDate',snapshotDate||'Daily_스냅샷');
+
+  const sr=latestRows(sales),pr=latestRows(pop);
   const topS=sr.slice().sort((a,b)=>(rankOf(a,sales)||999999)-(rankOf(b,sales)||999999))[0];
   const topP=pr.slice().sort((a,b)=>(rankOf(a,pop)||999999)-(rankOf(b,pop)||999999))[0];
 
-  setText('kpiSalesTop', topS ? gameName(topS,sales) : '-');
-  setText('kpiSalesTopRank', topS ? `순위 ${rankOf(topS,sales)}` : '-');
-  setText('kpiPopularTop', topP ? gameName(topP,pop) : '-');
-  setText('kpiPopularTopRank', topP ? `순위 ${rankOf(topP,pop)}` : '-');
+  setText('todaySalesTop',topS?gameName(topS,sales):'-');
+  setText('todaySalesMeta',topS?`매출 ${rankOf(topS,sales)}위`:'-');
+  setText('todayPopularTop',topP?gameName(topP,pop):'-');
+  setText('todayPopularMeta',topP?`인기 ${rankOf(topP,pop)}위`:'-');
 
-  setText('kpiSalesCount', new Set(sr.map(r=>gameName(r,sales)).filter(Boolean)).size.toLocaleString()+'개');
-  setText('kpiPopularCount', new Set(pr.map(r=>gameName(r,pop)).filter(Boolean)).size.toLocaleString()+'개');
-  setText('kpiNewCount', new Set(nr.map(r=>gameName(r,news)).filter(Boolean)).size.toLocaleString()+'개');
+  setText('todaySalesCount',uniqueNames(sr,sales).toLocaleString()+'개');
+  setText('todayPopularCount',uniqueNames(pr,pop).toLocaleString()+'개');
 
-  setText('kpiSalesDate', '기준일 '+(latestDate(sales)||'-'));
-  setText('kpiPopularDate', '기준일 '+(latestDate(pop)||'-'));
-  setText('kpiNewDate', '기준일 '+(latestDate(news)||'-'));
+  // 월간신작DB is explicitly A:출시일 B:게임명 C:플랫폼 D:퍼블리셔 E:출시유형
+  const ns=schema(news);
+  setText('todayNewCount',uniqueNames(news?.rows||[],news).toLocaleString()+'개');
+  setText('todayNewMeta',news?.rows?.length?`출시일 ${ns.releaseDate>=0?'기준':'DB 전체'}`:'월간신작DB');
 }
 
 function moverData(data,limit){
-  if(!data) return [];
-  const s=schema(data), latest=latestDate(data), prev=previousDate(data);
-  if(s.date<0 || s.rank<0 || s.name<0 || !latest || !prev) return [];
+  if(!data)return [];
+  const s=schema(data),latest=latestDate(data),prev=previousDate(data);
+  if(s.date<0||s.rank<0||s.name<0||!latest||!prev)return [];
 
   const prevMap=new Map();
   data.rows.filter(r=>r[s.date]===prev).forEach(r=>{
-    const n=gameName(r,data); const rk=rankOf(r,data);
-    if(n && rk!==null) prevMap.set(n,rk);
+    const n=gameName(r,data),rk=rankOf(r,data);
+    if(n&&rk!==null)prevMap.set(n,rk);
   });
 
   return data.rows.filter(r=>r[s.date]===latest).map(r=>{
-    const n=gameName(r,data), now=rankOf(r,data), before=prevMap.get(n);
-    if(now===null || before===undefined) return null;
+    const n=gameName(r,data),now=rankOf(r,data),before=prevMap.get(n);
+    if(now===null||before===undefined)return null;
     return {name:n,now,before,delta:before-now};
   }).filter(Boolean).sort((a,b)=>b.delta-a.delta).slice(0,limit);
 }
 
-function moverCard(x){
-  const cls=x.delta>0?'rank-up':x.delta<0?'rank-down':'rank-flat';
-  const icon=x.delta>0?'fa-arrow-up':x.delta<0?'fa-arrow-down':'fa-minus';
-  const sign=x.delta>0?'+':'';
-  return `<div class="bg-slate-950/70 border border-slate-800 rounded-lg p-3 flex items-center justify-between">
-    <div class="min-w-0"><div class="font-medium truncate">${escapeHtml(x.name)}</div>
-    <div class="text-[10px] muted mt-1">${x.before}위 → ${x.now}위</div></div>
-    <div class="${cls} text-xs font-bold ml-3 whitespace-nowrap"><i class="fa-solid ${icon}"></i> ${sign}${x.delta}</div>
-  </div>`;
-}
-
 function renderMovers(){
-  const limit=Number(document.getElementById('moverLimit').value||10);
-  const arr=moverData(rawStore.sales,limit);
+  const arr=moverData(rawStore.sales,Number(document.getElementById('moverLimit').value||10));
   const el=document.getElementById('movers');
   if(!arr.length){
-    el.innerHTML='<div class="text-xs muted col-span-full py-4">비교 가능한 최근 2개 데이터가 없습니다.</div>';
+    el.innerHTML='<div class="text-xs muted col-span-full py-4">최근 2개 수집일을 비교할 데이터가 없습니다.</div>';
     return;
   }
-  el.innerHTML=arr.map(moverCard).join('');
+  el.innerHTML=arr.map(x=>{
+    const cls=x.delta>0?'rank-up':x.delta<0?'rank-down':'rank-flat';
+    const icon=x.delta>0?'fa-arrow-up':x.delta<0?'fa-arrow-down':'fa-minus';
+    const sign=x.delta>0?'+':'';
+    return `<div class="bg-slate-950/70 border border-slate-800 rounded-lg p-3">
+      <div class="font-medium truncate text-xs">${escapeHtml(x.name)}</div>
+      <div class="flex justify-between items-center mt-2">
+        <span class="text-[10px] muted">${x.before}위 → ${x.now}위</span>
+        <span class="${cls} text-xs font-bold"><i class="fa-solid ${icon}"></i> ${sign}${x.delta}</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderTrend(){
-  const data=rawStore.sales;
-  if(!data) return;
-  const s=schema(data);
-  const allDates=getDates(data);
+  const data=rawStore.sales;if(!data)return;
+  const s=schema(data),allDates=getDates(data);
   const days=Number(document.getElementById('trendDays').value||30);
   const dates=allDates.slice(-days);
 
@@ -323,24 +368,23 @@ function renderTrend(){
   if(chartFilter){
     const q=chartFilter.toLowerCase();
     target=[...new Set(data.rows.filter(r=>gameName(r,data).toLowerCase().includes(q)).map(r=>gameName(r,data)))].slice(0,7);
-  } else {
+  }else{
     const latest=latestDate(data);
-    target=data.rows.filter(r=>r[s.date]===latest).sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999)).slice(0,7).map(r=>gameName(r,data));
+    target=data.rows.filter(r=>r[s.date]===latest)
+      .sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999))
+      .slice(0,7).map(r=>gameName(r,data));
   }
 
-  const datasets=target.map((name,i)=>({
+  const datasets=target.map(name=>({
     label:name,
     data:dates.map(d=>{
-      const row=data.rows.find(r=>r[s.date]===d && gameName(r,data)===name);
-      return row ? rankOf(row,data) : null;
+      const row=data.rows.find(r=>r[s.date]===d&&gameName(r,data)===name);
+      return row?rankOf(row,data):null;
     }),
-    borderWidth:2,
-    pointRadius:2,
-    tension:.25,
-    spanGaps:true
+    borderWidth:2,pointRadius:2,tension:.25,spanGaps:true
   }));
 
-  if(chartInstance) chartInstance.destroy();
+  if(chartInstance)chartInstance.destroy();
   chartInstance=new Chart(document.getElementById('rankChart').getContext('2d'),{
     type:'line',
     data:{labels:dates,datasets},
@@ -349,7 +393,7 @@ function renderTrend(){
       interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{labels:{color:'#cbd5e1',font:{size:10},boxWidth:18}},
-        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw ?? '-'}위`}}
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw??'-'}위`}}
       },
       scales:{
         x:{grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8',maxTicksLimit:12}},
@@ -357,80 +401,131 @@ function renderTrend(){
       }
     }
   });
-
-  setText('chartDescription', chartFilter ? `"${chartFilter}" 검색 결과` : `최신일 TOP 7 · 최근 ${dates.length}개 수집일`);
+  setText('chartDescription',chartFilter?`"${chartFilter}" 검색 결과`:`최신일 TOP 7 · 최근 ${dates.length}개 수집일`);
 }
 
-function applyChartFilter(){
-  chartFilter=document.getElementById('chartFilterInput').value.trim();
-  renderTrend();
-}
-function clearChartFilter(){
-  chartFilter='';
-  document.getElementById('chartFilterInput').value='';
-  renderTrend();
-}
-document.getElementById('chartFilterInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyChartFilter()});
+function applyChartFilter(){chartFilter=document.getElementById('chartFilterInput').value.trim();renderTrend();}
+function clearChartFilter(){chartFilter='';document.getElementById('chartFilterInput').value='';renderTrend();}
+document.getElementById('chartFilterInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyChartFilter();});
 
-function switchTab(tab){
-  currentTab=tab;
-  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+function switchView(view){
+  currentView=view;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
+  document.getElementById('view-dashboard').classList.toggle('hidden',view!=='dashboard');
+  document.getElementById('view-database').classList.toggle('hidden',view==='dashboard');
+
+  if(view==='sales'||view==='popular'||view==='newReleases'){
+    renderDatabase(view);
+  }
+  if(view==='snapshot'){
+    renderSnapshot();
+  }
+}
+
+function renderDatabase(view){
+  const data=rawStore[view];
+  if(!data)return;
+  const title={
+    sales:'매출 순위 DB',
+    popular:'인기 순위 DB',
+    newReleases:'월간 신작 DB'
+  }[view];
+  const desc={
+    sales:'일자별 Google Play 매출 순위 원본 데이터',
+    popular:'일자별 Google Play 인기 순위 원본 데이터',
+    newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'
+  }[view];
+
+  setText('dbTitle',title);
+  setText('dbDescription',desc);
   document.getElementById('tableSearch').value='';
-  renderTable();
-}
-
-function setupDateSelect(){
-  const data=rawStore[currentTab];
-  const select=document.getElementById('tableDate');
-  const dates=getDates(data).reverse();
-  select.innerHTML='<option value="">전체 날짜</option>'+dates.map(d=>`<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`).join('');
-  if(dates.length) select.value=dates[0];
-}
-
-function renderTable(){
-  const data=rawStore[currentTab];
-  if(!data){return}
   setupDateSelect();
   filterCurrentTable();
 }
 
+function setupDateSelect(){
+  const data=rawStore[currentView],select=document.getElementById('tableDate');
+  if(!data){select.innerHTML='';return;}
+  const s=schema(data),dates=getDates(data).reverse();
+  // 신작 DB는 날짜 컬럼이 '출시일'이므로 날짜 필터도 동일하게 활용
+  select.innerHTML='<option value="">전체 날짜</option>'+
+    dates.map(d=>`<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`).join('');
+  if(dates.length)select.value=dates[0];
+}
+
 function filterCurrentTable(){
-  const data=rawStore[currentTab], s=schema(data);
+  const data=rawStore[currentView];
+  if(!data)return;
+  const s=schema(data);
   const q=document.getElementById('tableSearch').value.toLowerCase().trim();
   const date=document.getElementById('tableDate').value;
+
   let rows=data.rows;
+  if(date&&s.date>=0)rows=rows.filter(r=>r[s.date]===date);
+  if(q)rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
+  if(s.rank>=0)rows=rows.slice().sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999));
 
-  if(date && s.date>=0) rows=rows.filter(r=>r[s.date]===date);
-  if(q) rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
+  // IMPORTANT:
+  // '증감수치' is an internal calculation column and must never be rendered.
+  const hiddenCols=data.cols.map((c,i)=>norm(c)==='증감수치'||norm(c)==='증감'||norm(c)==='change');
+  const visibleIndexes=data.cols.map((_,i)=>i).filter(i=>!hiddenCols[i]);
 
-  if(s.rank>=0) rows=rows.slice().sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999));
+  document.getElementById('tableHead').innerHTML='<tr>'+
+    visibleIndexes.map(i=>`<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${escapeHtml(data.cols[i]||'-')}</th>`).join('')+
+    '</tr>';
 
-  document.getElementById('tableHead').innerHTML='<tr>'+data.cols.map(c=>`<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${escapeHtml(c||'-')}</th>`).join('')+'</tr>';
-  document.getElementById('tableBody').innerHTML=rows.length ? rows.map(r=>`<tr class="border-b border-slate-900 hover:bg-slate-800/40">${r.map(c=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(c===''?'-':c)}</td>`).join('')}</tr>`).join('') :
+  document.getElementById('tableBody').innerHTML=rows.length?rows.map(r=>'<tr class="border-b border-slate-900 hover:bg-slate-800/40">'+
+    visibleIndexes.map(i=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('')+
+    '</tr>').join(''):
     '<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
 
   setText('tableRowCount',`${rows.length.toLocaleString()}행`);
+  setText('dbDataDate',date?`선택 날짜 · ${date}`:`전체 ${data.rows.length.toLocaleString()}행`);
+}
+
+function renderSnapshot(){
+  // Snapshot is a dedicated top-level menu. Its actual columns are preserved,
+  // but internal calculation fields such as 증감수치는 also hidden.
+  const data=rawStore.snapshot;
+  if(!data)return;
+  currentView='snapshot';
+  setText('dbTitle','Daily Snapshot');
+  setText('dbDescription','Today 기준 시장 요약 원본 데이터');
+  document.getElementById('tableSearch').value='';
+  setupDateSelect();
+  filterCurrentTable();
 }
 
 function escapeHtml(v){
   return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 }
-function escapeAttr(v){return escapeHtml(v)}
+function escapeAttr(v){return escapeHtml(v);}
 
 async function fetchAllData(){
-  const status=document.getElementById('syncStatus'), btn=document.getElementById('refreshBtn');
+  const status=document.getElementById('syncStatus'),btn=document.getElementById('refreshBtn');
   status.className='text-xs px-3 py-1.5 rounded-full bg-indigo-950 text-indigo-300';
   status.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> 동기화 중';
   btn.disabled=true;
 
   try{
-    const [sales,popular,news]=await Promise.all([
+    const [sales,popular,news,snapshot]=await Promise.all([
       fetchSheetData(SHEETS.sales),
       fetchSheetData(SHEETS.popular),
-      fetchSheetData(SHEETS.newReleases)
+      fetchSheetData(SHEETS.newReleases),
+      fetchSheetData(SHEETS.snapshot)
     ]);
-    rawStore.sales=sales;rawStore.popular=popular;rawStore.newReleases=news;
-    renderKPIs();renderMovers();renderTrend();renderTable();
+    rawStore.sales=sales;
+    rawStore.popular=popular;
+    rawStore.newReleases=news;
+    rawStore.snapshot=snapshot;
+
+    renderToday();
+    renderMovers();
+    renderTrend();
+
+    if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
+    if(currentView==='snapshot')renderSnapshot();
+
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
     status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
   }catch(err){
@@ -438,7 +533,7 @@ async function fetchAllData(){
     status.className='text-xs px-3 py-1.5 rounded-full bg-rose-950 text-rose-300';
     status.innerHTML='<i class="fa-solid fa-circle-exclamation mr-1"></i> 동기화 실패';
     alert('데이터를 불러오지 못했습니다.\\n\\n'+err.message+'\\n\\nGoogle Sheets가 웹에서 공개되어 있는지 확인하세요.');
-  }finally{btn.disabled=false}
+  }finally{btn.disabled=false;}
 }
 
 window.addEventListener('DOMContentLoaded',fetchAllData);
