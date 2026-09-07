@@ -200,16 +200,14 @@ body{background:#080d18}
         <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
       </div>
       <div class="flex gap-2 items-center">
-  <!-- 모바일 전용 필터 (월간 신작 DB에서만 노출되도록 hidden 처리) -->
-  <label id="mobileFilterWrap" class="hidden items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer text-slate-300 hover:bg-slate-700 transition-colors">
-    <input type="checkbox" id="mobileFilter" onchange="filterCurrentTable()" class="accent-indigo-500"> 모바일 게임만
-  </label>
-  
-  <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
-    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
-  <select id="tableDate" onchange="filterCurrentTable()"
-    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
-</div>
+        <label id="mobileFilterWrap" class="hidden items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer text-slate-300 hover:bg-slate-700 transition-colors">
+          <input type="checkbox" id="mobileFilter" onchange="filterCurrentTable()" class="accent-indigo-500"> 모바일 게임만
+        </label>
+        <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
+          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
+        <select id="tableDate" onchange="filterCurrentTable()"
+          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
+      </div>
     </div>
     <div class="px-4 py-3 border-b border-slate-800 flex justify-between">
       <span id="dbDataDate" class="text-xs muted">-</span>
@@ -234,7 +232,6 @@ body{background:#080d18}
 <!-- GAME DETAIL SIDE PANEL -->
 <div id="detailOverlay" class="fixed inset-0 bg-black/70 z-40 hidden opacity-0 transition-opacity duration-300" onclick="closeGameDetail()"></div>
 <div id="detailPanel" class="fixed top-0 right-0 w-full max-w-[450px] h-full bg-slate-900 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 overflow-y-auto border-l border-slate-700 flex flex-col">
-  <!-- Panel Header -->
   <div class="p-5 border-b border-slate-800 flex justify-between items-start sticky top-0 bg-slate-900/95 backdrop-blur z-20">
     <div class="pr-4">
       <div class="text-[11px] text-indigo-400 font-semibold mb-1 truncate" id="detailGenrePub">-</div>
@@ -244,12 +241,10 @@ body{background:#080d18}
   </div>
   
   <div class="p-5 space-y-6 flex-1">
-    <!-- Action Link -->
     <a id="detailPlayStoreLink" href="#" target="_blank" class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold transition-colors">
       <i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 검색
     </a>
 
-    <!-- Current Status Cards -->
     <div class="grid grid-cols-2 gap-3">
       <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-800/30">
         <div class="text-[11px] muted mb-1"><i class="fa-solid fa-coins text-indigo-400 mr-1.5"></i>현재 매출 순위</div>
@@ -267,7 +262,6 @@ body{background:#080d18}
       </div>
     </div>
 
-    <!-- Dual Trend Chart -->
     <div>
       <div class="flex items-center justify-between mb-3">
         <h4 class="text-sm font-semibold">순위 복합 추이 (최근 30일)</h4>
@@ -279,7 +273,6 @@ body{background:#080d18}
       <div class="h-[220px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailChart"></canvas></div>
     </div>
 
-    <!-- Analytics Metrics -->
     <div>
       <h4 class="text-sm font-semibold mb-3">순위 분석 <span class="text-[11px] muted font-normal ml-1">(최근 30일 데이터 기준)</span></h4>
       <div class="card rounded-xl border-slate-700/50 divide-y divide-slate-700/50 text-sm">
@@ -319,6 +312,9 @@ const aliases={
   name:['앱이름','게임명','게임이름','앱 이름','앱명','title','name','타이틀'],
   genre:['장르','genre','카테고리','category'],
   publisher:['퍼블리셔','개발사','회사','publisher','developer'],
+  platform:['플랫폼','platform'],
+  releaseDate:['출시일','release date','releasedate'],
+  releaseType:['출시유형','출시 유형','release type','releasetype'],
   change:['증감수치','증감','change']
 };
 
@@ -339,6 +335,9 @@ function schema(data){
     name:findCol(c,'name'),
     genre:findCol(c,'genre'),
     publisher:findCol(c,'publisher'),
+    platform:findCol(c,'platform'),
+    releaseDate:findCol(c,'releaseDate'),
+    releaseType:findCol(c,'releaseType'),
     change:findCol(c,'change')
   };
 }
@@ -452,31 +451,22 @@ function parseSnapshotSheet(data){
 }
 
 function rankChangeBadge(change, large=false){
-  const c = String(change||'').trim();
+  const c=String(change||'').trim();
   const textClass = large ? 'text-sm' : 'text-[11px]';
-  
-  // 값이 없거나, 0이거나, 유지인 경우
   if(!c || c === '-' || c === '0' || c.includes('유지')) {
     return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
   }
-  
-  // NEW 인 경우
   if(/new/i.test(c)) {
     return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
   }
-
-  // 텍스트에 이미 화살표가 있는 경우 (Daily 스냅샷 등)
-  if(c.startsWith('▲')) return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  if(c.startsWith('▼')) return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-
-  // DB에서 순수 숫자(예: "5", "-3")만 들어왔을 때 자동으로 화살표와 색상 부여
+  if(c.startsWith('▲'))return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
+  if(c.startsWith('▼'))return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
+  
   const num = Number(c);
   if(!isNaN(num)) {
     if(num > 0) return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">▲ ${num}</span>`;
     if(num < 0) return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">▼ ${Math.abs(num)}</span>`;
   }
-
-  // 그 외 예외 텍스트
   return `<span class="rank-flat ${textClass}">${escapeHtml(c)}</span>`;
 }
 
@@ -632,12 +622,11 @@ function filterCurrentTable(){
   if(date&&s.date>=0)rows=rows.filter(r=>r[s.date]===date);
   if(q)rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
   
-  // 월간 신작 DB - 모바일 필터링 로직 추가
+  // 월간 신작 DB - 모바일 필터링 로직
   if(currentView === 'newReleases') {
     const isMobileChecked = document.getElementById('mobileFilter')?.checked;
     if(isMobileChecked && s.platform >= 0) {
       rows = rows.filter(r => {
-        // 공백 제거 후 '모바일' 문자열 포함 여부 검사 (스크래핑 데이터 오차 방어)
         const platformStr = String(r[s.platform] ?? '').replace(/\s+/g, '');
         return platformStr.includes('모바일');
       });
@@ -655,7 +644,6 @@ function filterCurrentTable(){
     return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">`+
     visibleIndexes.map(i=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('')+'</tr>';
   }).join(''):'<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
-  
   setText('tableRowCount',`${rows.length.toLocaleString()}행`);
   setText('dbDataDate',date?`선택 날짜 · ${date}`:`전체 ${data.rows.length.toLocaleString()}행`);
 }
@@ -663,24 +651,22 @@ function filterCurrentTable(){
 function renderDatabase(view){
   const data=rawStore[view];
   if(!data)return;
-  
   const search=document.getElementById('tableSearch');
   if(search) search.placeholder=view==='newReleases'?'게임명 / 퍼블리셔 검색':'게임명 / 장르 / 퍼블리셔 검색';
-  
   const title={sales:'매출 순위 DB',popular:'인기 순위 DB',newReleases:'월간 신작 DB'}[view];
   const desc={sales:'일자별 Google Play 매출 순위 원본 데이터',popular:'일자별 Google Play 인기 순위 원본 데이터',newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
   setText('dbTitle',title); setText('dbDescription',desc);
 
-  // 모바일 필터 버튼 노출 제어 (신작 DB에서만 보이기)
   const mobileWrap = document.getElementById('mobileFilterWrap');
   if(mobileWrap) {
     if(view === 'newReleases') {
       mobileWrap.classList.remove('hidden');
       mobileWrap.classList.add('flex');
-      document.getElementById('mobileFilter').checked = false; // 탭 이동 시 체크박스 초기화
     } else {
       mobileWrap.classList.add('hidden');
       mobileWrap.classList.remove('flex');
+      const chk = document.getElementById('mobileFilter');
+      if(chk) chk.checked = false;
     }
   }
 
@@ -688,7 +674,6 @@ function renderDatabase(view){
   setupDateSelect(); filterCurrentTable();
 }
 
-// ---- GAME DETAIL LOGIC ---- //
 function getMetricsForGame(data, gameNameTarget, recentDays=30){
   if(!data) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'' };
   const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
@@ -723,34 +708,27 @@ function getMetricsForGame(data, gameNameTarget, recentDays=30){
 
 function openGameDetail(targetName) {
   setText('detailTitle', targetName);
-  
   const salesMetrics = getMetricsForGame(rawStore.sales, targetName);
   const popMetrics = getMetricsForGame(rawStore.popular, targetName);
   
-  // Combine Genre/Publisher from whichever has it
   const finalGenre = salesMetrics.genre || popMetrics.genre || '-';
   const finalPub = salesMetrics.pub || popMetrics.pub || '-';
   setText('detailGenrePub', `${finalGenre} · ${finalPub}`);
 
-  // Current Status
   setText('detailSalesRank', salesMetrics.currentRank + (salesMetrics.currentRank !== '-' ? '위' : ''));
   document.getElementById('detailSalesChange').innerHTML = rankChangeBadge(salesMetrics.change, true);
   setText('detailPopRank', popMetrics.currentRank + (popMetrics.currentRank !== '-' ? '위' : ''));
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
 
-  // Play Store Link
   const linkEl = document.getElementById('detailPlayStoreLink');
   linkEl.href = `https://play.google.com/store/search?q=${encodeURIComponent(targetName)}&c=apps`;
 
-  // Analytics
   setText('detailSalesHigh', salesMetrics.high + (salesMetrics.high !== '-' ? '위' : ''));
   setText('detailSalesAvg', salesMetrics.avg + (salesMetrics.avg !== '-' ? '위' : ''));
   setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : ''));
   setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
 
-  // Draw Dual Chart (Recent 30 Days Dates Union)
   const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-30);
-  
   const getRankData = (data, d) => {
     if(!data) return null;
     const s = schema(data);
@@ -773,7 +751,6 @@ function openGameDetail(targetName) {
     }
   });
 
-  // UI Animation
   const overlay = document.getElementById('detailOverlay');
   const panel = document.getElementById('detailPanel');
   overlay.classList.remove('hidden');
