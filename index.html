@@ -53,6 +53,9 @@ body{background:#080d18}
     <button class="tab" data-view="newReleases" onclick="switchView('newReleases')">
       <i class="fa-solid fa-rocket mr-1.5"></i> 월간 신작 DB
     </button>
+    <button class="tab" data-view="search" onclick="switchView('search')">
+      <i class="fa-solid fa-magnifying-glass mr-1.5"></i> 순위 검색
+    </button>
   </div>
 </nav>
 
@@ -105,19 +108,24 @@ body{background:#080d18}
   </section>
 
   <section class="card rounded-xl p-5">
-    <h2 class="font-semibold mb-1">오늘의 순위 변동</h2>
-    <p class="text-xs muted mb-4">Daily_스냅샷의 신규 진입 / 매출 급상승 / 매출 급하락 원본 데이터</p>
+    <h2 class="font-semibold mb-4">오늘의 순위 변동</h2>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <div>
-        <div class="text-xs font-semibold muted mb-2">인기순위 신규 진입</div>
+        <div class="text-xs font-semibold mb-2 flex items-center gap-1.5 text-sky-400">
+          <span class="w-2 h-2 rounded-full bg-sky-400"></span>인기순위 신규 진입
+        </div>
         <ul id="newEntriesList" class="space-y-1"></ul>
       </div>
       <div>
-        <div class="text-xs font-semibold muted mb-2">매출 급상승</div>
+        <div class="text-xs font-semibold mb-2 flex items-center gap-1.5 text-emerald-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>매출 급상승
+        </div>
         <ul id="salesRisingList" class="space-y-1"></ul>
       </div>
       <div>
-        <div class="text-xs font-semibold muted mb-2">매출 급하락</div>
+        <div class="text-xs font-semibold mb-2 flex items-center gap-1.5 text-rose-400">
+          <span class="w-2 h-2 rounded-full bg-rose-400"></span>매출 급하락
+        </div>
         <ul id="salesFallingList" class="space-y-1"></ul>
       </div>
     </div>
@@ -156,6 +164,45 @@ body{background:#080d18}
     <div class="h-[360px]"><canvas id="rankChart"></canvas></div>
   </section>
 
+</div>
+
+<!-- SEARCH VIEW -->
+<div id="view-search" class="hidden space-y-5">
+  <section class="card rounded-xl p-5">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="font-semibold">타이틀 순위 검색</h2>
+        <p class="text-xs muted mt-1">게임명을 검색해 인기·매출 순위 추이를 확인하고, 두 타이틀을 비교할 수 있습니다</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer">
+          <input type="checkbox" id="toggleSearchPopular" checked onchange="renderSearchCharts()"> <i class="fa-solid fa-fire text-emerald-400"></i> 인기 순위
+        </label>
+        <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer">
+          <input type="checkbox" id="toggleSearchSales" checked onchange="renderSearchCharts()"> <i class="fa-solid fa-coins text-indigo-400"></i> 매출 순위
+        </label>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+      <input id="searchTitle1" list="gameNameOptions" placeholder="게임 1 검색"
+        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
+        oninput="renderSearchCharts()">
+      <input id="searchTitle2" list="gameNameOptions" placeholder="게임 2 검색 (비교, 선택)"
+        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
+        oninput="renderSearchCharts()">
+      <datalist id="gameNameOptions"></datalist>
+    </div>
+
+    <div id="searchPopularWrap" class="mb-6">
+      <div class="text-xs font-semibold muted mb-2"><i class="fa-solid fa-fire text-emerald-400 mr-1"></i>인기 순위 추이</div>
+      <div class="h-[300px]"><canvas id="searchPopularChart"></canvas></div>
+    </div>
+    <div id="searchSalesWrap">
+      <div class="text-xs font-semibold muted mb-2"><i class="fa-solid fa-coins text-indigo-400 mr-1"></i>매출 순위 추이</div>
+      <div class="h-[300px]"><canvas id="searchSalesChart"></canvas></div>
+    </div>
+  </section>
 </div>
 
 <!-- DATABASE VIEW -->
@@ -244,7 +291,10 @@ function schema(data){
 
 function cleanValue(v){
   if(v===null||v===undefined)return '';
-  if(typeof v==='object')return v.v??v.f??'';
+  // 날짜/숫자 타입 셀은 v(원본값)이 "Date(2026,8,7)" 같은 raw 인코딩이라
+  // f(화면 표시용 포맷 문자열)를 우선 사용해야 한다. f가 없는 순수 텍스트
+  // 셀만 v로 대체한다.
+  if(typeof v==='object')return (v.f!==undefined&&v.f!==null&&v.f!=='')?v.f:(v.v??'');
   return String(v).trim();
 }
 
@@ -502,8 +552,85 @@ function switchView(view){
   currentView=view;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
   document.getElementById('view-dashboard').classList.toggle('hidden',view!=='dashboard');
-  document.getElementById('view-database').classList.toggle('hidden',view==='dashboard');
+  document.getElementById('view-search').classList.toggle('hidden',view!=='search');
+  document.getElementById('view-database').classList.toggle('hidden',!(view==='sales'||view==='popular'||view==='newReleases'));
   if(view==='sales'||view==='popular'||view==='newReleases')renderDatabase(view);
+  if(view==='search')renderSearchCharts();
+}
+
+// ---- 순위 검색 탭 ----
+function populateGameNameOptions(){
+  const names=new Set();
+  (rawStore.sales?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.sales)));
+  (rawStore.popular?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.popular)));
+  const dl=document.getElementById('gameNameOptions');
+  if(!dl)return;
+  dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
+}
+
+function topRankedTitle(data){
+  if(!data)return '';
+  const s=schema(data),latest=latestDate(data);
+  const row=data.rows.filter(r=>r[s.date]===latest).sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999))[0];
+  return row?gameName(row,data):'';
+}
+
+let searchPopularChartInst=null, searchSalesChartInst=null;
+
+function drawSearchChart(canvasId,prevInstance,data,titles,colors){
+  if(!data)return prevInstance;
+  const ctx=document.getElementById(canvasId).getContext('2d');
+  const s=schema(data),dates=getDates(data);
+  const datasets=titles.filter(Boolean).map((t,i)=>({
+    label:t,
+    data:dates.map(d=>{
+      const row=data.rows.find(r=>r[s.date]===d&&gameName(r,data)===t);
+      return row?rankOf(row,data):null;
+    }),
+    borderColor:colors[i%colors.length],
+    backgroundColor:'transparent',
+    borderWidth:2,pointRadius:2,tension:.25,spanGaps:true
+  }));
+  if(prevInstance)prevInstance.destroy();
+  return new Chart(ctx,{
+    type:'line',
+    data:{labels:dates,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#cbd5e1',font:{size:10}}},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw??'-'}위`}}
+      },
+      scales:{
+        x:{grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8',maxTicksLimit:12}},
+        y:{reverse:true,min:1,suggestedMax:100,grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8'}}
+      }
+    }
+  });
+}
+
+function renderSearchCharts(){
+  if(!rawStore.sales&&!rawStore.popular)return;
+  const t1=document.getElementById('searchTitle1').value.trim();
+  const t2=document.getElementById('searchTitle2').value.trim();
+  let titles=[t1,t2].filter(Boolean);
+
+  const showPop=document.getElementById('toggleSearchPopular').checked;
+  const showSales=document.getElementById('toggleSearchSales').checked;
+  document.getElementById('searchPopularWrap').classList.toggle('hidden',!showPop);
+  document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
+
+  const colors=['#818cf8','#fbbf24'];
+
+  if(showPop){
+    const popTitles=titles.length?titles:[topRankedTitle(rawStore.popular)];
+    searchPopularChartInst=drawSearchChart('searchPopularChart',searchPopularChartInst,rawStore.popular,popTitles,colors);
+  }
+  if(showSales){
+    const salesTitles=titles.length?titles:[topRankedTitle(rawStore.sales)];
+    searchSalesChartInst=drawSearchChart('searchSalesChart',searchSalesChartInst,rawStore.sales,salesTitles,colors);
+  }
 }
 
 function renderDatabase(view){
@@ -587,7 +714,9 @@ async function fetchAllData(){
 
     renderToday();
     renderTrend();
+    populateGameNameOptions();
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
+    if(currentView==='search')renderSearchCharts();
 
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
     status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
