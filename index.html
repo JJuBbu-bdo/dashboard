@@ -504,8 +504,11 @@ function renderToday(){
   const snap=rawStore.snapshot;
   if(!snap)return;
   const p=parseSnapshotSheet(snap);
-  setText('todayLabel',p.asOfDate?`Today · ${p.asOfDate}`:'Today');
-  setText('snapshotDate',p.asOfDate||'');
+  
+  // 상단 헤더 및 대시보드 타이틀 옆에 날짜 반영
+  const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
+  setText('todayLabel', `Today · ${displayDate}`);
+  setText('snapshotDate', `기준일: ${displayDate}`);
 
   const topPop=p.popularTop10[0];
   setText('todayPopularTop', topPop ? topPop.name : '-');
@@ -653,7 +656,7 @@ function renderDatabase(view){
   if(!data)return;
   const search=document.getElementById('tableSearch');
   if(search) search.placeholder=view==='newReleases'?'게임명 / 퍼블리셔 검색':'게임명 / 장르 / 퍼블리셔 검색';
-  const title={sales:'매출 순위 DB',popular:'인기 순위 DB',newReleases:'월간 신작 DB'}[view];
+  const title={sales:'매출 순위 DB',popular:'인기 순위 DB',newReleases:'신작 정보 DB'}[view];
   const desc={sales:'일자별 Google Play 매출 순위 원본 데이터',popular:'일자별 Google Play 인기 순위 원본 데이터',newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
   setText('dbTitle',title); setText('dbDescription',desc);
 
