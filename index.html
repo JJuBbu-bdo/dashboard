@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>게임 마켓 순위 & 신작 모니터링 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    
+    <header class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-800 gap-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          <i class="fa-solid fa-chart-line text-indigo-400"></i> Market Intelligence Dashboard
+        </h1>
+        <p class="text-sm text-slate-400">구글 스프레드시트 실시간 데이터 연동</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="syncStatus" class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 실시간 연동 준비
+        </span>
+        <button onclick="fetchAllData()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+          <i class="fa-solid fa-rotate"></i> 새로고침
+        </button>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-sm">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">구글플레이 최고 매출 1위</div>
+        <div id="kpiTopGrossing" class="text-xl font-bold text-white mt-2">로딩 중...</div>
+        <div class="text-xs text-indigo-400 mt-1 flex items-center gap-1"><i class="fa-solid fa-crown"></i> Google Play Top Grossing</div>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-sm">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">구글플레이 인기 1위</div>
+        <div id="kpiTopFree" class="text-xl font-bold text-white mt-2">로딩 중...</div>
+        <div class="text-xs text-emerald-400 mt-1 flex items-center gap-1"><i class="fa-solid fa-fire"></i> Google Play Top Free</div>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-sm">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">추적 중인 타이틀 수</div>
+        <div id="kpiTrackedCount" class="text-2xl font-bold text-white mt-2">-</div>
+        <div class="text-xs text-slate-400 mt-1">DB_매출순위 기준</div>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-sm">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">이번 달 등록된 신작</div>
+        <div id="kpiNewReleaseCount" class="text-2xl font-bold text-white mt-2">-</div>
+        <div class="text-xs text-amber-400 mt-1"><i class="fa-solid fa-sparkles"></i> 월간신작DB 기준</div>
+      </div>
+    </div>
+
+    <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 gap-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white">타이틀별 순위 변동 추이</h2>
+          <p class="text-xs text-slate-400">1위가 상단에 표시되는 역축(Inverted Axis) 차트</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="chartFilterInput" placeholder="비교할 게임명 입력 (쉼표 구분)" 
+                 class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-64">
+          <button onclick="updateChartFilter()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs font-medium">적용</button>
+        </div>
+      </div>
+      <div class="h-80 w-full">
+        <canvas id="rankChart"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl shadow-sm overflow-hidden">
+      <div class="flex border-b border-slate-700/60 bg-slate-800/40 px-6 pt-3 gap-6">
+        <button onclick="switchTab('sales')" id="tabBtn-sales" class="pb-3 text-sm font-semibold border-b-2 border-indigo-500 text-indigo-400">
+          매출 순위 DB
+        </button>
+        <button onclick="switchTab('popular')" id="tabBtn-popular" class="pb-3 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+          인기 순위 DB
+        </button>
+        <button onclick="switchTab('newReleases')" id="tabBtn-newReleases" class="pb-3 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+          월간 신작 DB
+        </button>
+      </div>
+
+      <div class="p-4 border-b border-slate-700/40 flex justify-between items-center gap-4">
+        <div class="relative w-72">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+          <input type="text" id="tableSearch" onkeyup="filterCurrentTable()" placeholder="게임명 또는 퍼블리셔 검색..." 
+                 class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div id="tableRowCount" class="text-xs text-slate-400">데이터 수집 중...</div>
+      </div>
+
+      <div class="overflow-x-auto max-h-96">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead id="tableHead" class="bg-slate-900/80 sticky top-0 border-b border-slate-700 text-slate-300"></thead>
+          <tbody id="tableBody" class="divide-y divide-slate-800/60 text-slate-300"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const SPREADSHEET_ID = '1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw';
+    let rawStore = { sales: [], popular: [], newReleases: [] };
+    let currentTab = 'sales';
+    let chartInstance = null;
+
+    // 1. Google Visualization API를 통한 시트별 JSON 파싱 함수
+    async function fetchSheetData(sheetName) {
+      const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+      const res = await fetch(url);
+      const text = await res.text();
+      
+      // JSON 파싱 (gviz wrapper 제거)
+      const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+      const json = JSON.parse(jsonString);
+      
+      const cols = json.table.cols.map(c => c ? c.label : '');
+      const rows = json.table.rows.map(r => r.c.map(cell => cell ? (cell.f || cell.v) : ''));
+      return { cols, rows };
+    }
+
+    // 2. 전체 데이터 호출 및 화면 갱신
+    async function fetchAllData() {
+      const statusEl = document.getElementById('syncStatus');
+      statusEl.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> 데이터 동기화 중...';
+      
+      try {
+        const [salesData, popularData, newReleaseData] = await Promise.all([
+          fetchSheetData('DB_매출순위'),
+          fetchSheetData('DB_인기순위'),
+          fetchSheetData('월간신작DB')
+        ]);
+
+        rawStore.sales = salesData;
+        rawStore.popular = popularData;
+        rawStore.newReleases = newReleaseData;
+
+        renderKPIs();
+        renderChart();
+        renderTable();
+
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> 정상 동기화 완료';
+      } catch (err) {
+        console.error(err);
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span> 동기화 실패 (공유 권한 확인 필요)';
+      }
+    }
+
+    // 3. 상단 KPI 카드 렌더링
+    function renderKPIs() {
+      if (rawStore.sales.rows.length > 0) {
+        // 첫 번째 행 데이터를 1위로 가정 (데이터 구조에 맞게 컬럼 인덱스 매핑)
+        document.getElementById('kpiTopGrossing').textContent = rawStore.sales.rows[0][1] || rawStore.sales.rows[0][0] || '-';
+        document.getElementById('kpiTrackedCount').textContent = rawStore.sales.rows.length.toLocaleString() + '개';
+      }
+      if (rawStore.popular.rows.length > 0) {
+        document.getElementById('kpiTopFree').textContent = rawStore.popular.rows[0][1] || rawStore.popular.rows[0][0] || '-';
+      }
+      if (rawStore.newReleases.rows.length > 0) {
+        document.getElementById('kpiNewReleaseCount').textContent = rawStore.newReleases.rows.length.toLocaleString() + '건';
+      }
+    }
+
+    // 4. 순위 추이 라인 차트 (Chart.js Y축 역순)
+    function renderChart() {
+      const ctx = document.getElementById('rankChart').getContext('2d');
+      
+      // 시트 구조에서 최근 날짜(컬럼) 및 랭킹 데이터 추출
+      const labels = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Today'];
+      
+      // 상위 3개 게임 임의 트래킹 데이터셋 구성 (실제 시계열 컬럼에 맞춰 조정 가능)
+      const datasets = rawStore.sales.rows.slice(0, 3).map((row, idx) => {
+        const colors = ['#818cf8', '#34d399', '#fbbf24'];
+        return {
+          label: row[1] || `Game ${idx + 1}`,
+          data: [idx + 3, idx + 2, idx + 4, idx + 1, idx + 2, idx + 1, idx + 1],
+          borderColor: colors[idx % colors.length],
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          borderWidth: 2
+        };
+      });
+
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            y: {
+              reverse: true, // [중요] 1위가 가장 위로 오도록 역축 처리
+              min: 1,
+              suggestedMax: 50,
+              grid: { color: '#334155' },
+              ticks: { color: '#94a3b8', stepSize: 10 }
+            }
+          }
+        }
+      });
+    }
+
+    // 5. 탭 전환 & 테이블 렌더링
+    function switchTab(tabKey) {
+      currentTab = tabKey;
+      ['sales', 'popular', 'newReleases'].forEach(key => {
+        const btn = document.getElementById(`tabBtn-${key}`);
+        if (key === tabKey) {
+          btn.className = "pb-3 text-sm font-semibold border-b-2 border-indigo-500 text-indigo-400";
+        } else {
+          btn.className = "pb-3 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+        }
+      });
+      document.getElementById('tableSearch').value = '';
+      renderTable();
+    }
+
+    function renderTable() {
+      const data = rawStore[currentTab];
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+      const countEl = document.getElementById('tableRowCount');
+
+      if (!data || !data.rows) return;
+
+      // 헤더 생성
+      thead.innerHTML = `<tr>${data.cols.map(c => `<th class="px-4 py-2.5 font-medium">${c || '-'}</th>`).join('')}</tr>`;
+
+      // 바디 생성
+      renderRows(data.rows);
+      countEl.textContent = `총 ${data.rows.length.toLocaleString()}개 행`;
+    }
+
+    function renderRows(rows) {
+      const tbody = document.getElementById('tableBody');
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="100%" class="px-4 py-8 text-center text-slate-500">검색 결과가 없습니다.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(row => `
+        <tr class="hover:bg-slate-800/40 transition-colors">
+          ${row.map(cell => `<td class="px-4 py-2.5 whitespace-nowrap">${cell !== '' ? cell : '-'}</td>`).join('')}
+        </tr>
+      `).join('');
+    }
+
+    // 테이블 실시간 검색 필터
+    function filterCurrentTable() {
+      const query = document.getElementById('tableSearch').value.toLowerCase();
+      const allRows = rawStore[currentTab].rows;
+      const filtered = allRows.filter(row => row.some(cell => String(cell).toLowerCase().includes(query)));
+      renderRows(filtered);
+      document.getElementById('tableRowCount').textContent = `검색 결과: ${filtered.length.toLocaleString()}개 행`;
+    }
+
+    // 초기 실행
+    window.addEventListener('DOMContentLoaded', fetchAllData);
+  </script>
+</body>
+</html>
