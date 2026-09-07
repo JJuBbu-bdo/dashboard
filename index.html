@@ -53,9 +53,6 @@ body{background:#080d18}
     <button class="tab" data-view="newReleases" onclick="switchView('newReleases')">
       <i class="fa-solid fa-rocket mr-1.5"></i> 월간 신작 DB
     </button>
-    <button class="tab" data-view="snapshot" onclick="switchView('snapshot')">
-      <i class="fa-solid fa-calendar-day mr-1.5"></i> Daily Snapshot
-    </button>
   </div>
 </nav>
 
@@ -148,7 +145,7 @@ body{background:#080d18}
         <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회</p>
       </div>
       <div class="flex gap-2 items-center">
-        <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 장르 / 퍼블리셔 검색"
+        <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
           class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
         <select id="tableDate" onchange="filterCurrentTable()"
           class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
@@ -170,7 +167,7 @@ body{background:#080d18}
 </main>
 
 <footer class="text-[11px] muted text-center py-5">
-  Google Sheets 기반 · DB_매출순위 / DB_인기순위 / 월간신작DB / Daily_스냅샷
+  Google Sheets 기반 · Today = Daily_스냅샷
 </footer>
 </div>
 
@@ -425,6 +422,15 @@ function switchView(view){
 function renderDatabase(view){
   const data=rawStore[view];
   if(!data)return;
+
+  // 월간 신작 DB는 실제 컬럼이 A:출시일 / B:게임명 / C:플랫폼 / D:퍼블리셔 / E:출시유형.
+  // 따라서 검색 안내도 해당 DB 구조에 맞춘다.
+  const search = document.getElementById('tableSearch');
+  if(search){
+    search.placeholder = view==='newReleases'
+      ? '게임명 / 퍼블리셔 검색'
+      : '게임명 / 장르 / 퍼블리셔 검색';
+  }
   const title={
     sales:'매출 순위 DB',
     popular:'인기 순위 DB',
@@ -524,7 +530,7 @@ async function fetchAllData(){
     renderTrend();
 
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
-    if(currentView==='snapshot')renderSnapshot();
+    
 
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
     status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
