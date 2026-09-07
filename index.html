@@ -785,7 +785,7 @@ async function fetchAllData(){
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
-    status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
+    status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> DB Status';
   }catch(err){
     status.className='text-xs px-3 py-1.5 rounded-full bg-rose-950 text-rose-300';
     status.innerHTML='<i class="fa-solid fa-circle-exclamation mr-1"></i> 동기화 실패';
