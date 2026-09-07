@@ -15,6 +15,8 @@ body{background:#080d18}
 .tab:hover{color:#cbd5e1}.tab.active{color:#818cf8;border-color:#6366f1}
 .rank-up{color:#34d399}.rank-down{color:#fb7185}.rank-flat{color:#94a3b8}
 .scrollbar::-webkit-scrollbar{height:7px;width:7px}.scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
+.summary-card-hover { cursor:pointer; transition: all 0.2s ease; }
+.summary-card-hover:hover { background:rgba(30,41,59,.9); transform: translateY(-2px); border-color: rgba(99, 102, 241, 0.4); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 </style>
 </head>
 
@@ -70,7 +72,8 @@ body{background:#080d18}
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-      <div class="card rounded-xl p-4 relative overflow-hidden">
+      <!-- 1. 인기 1위 -->
+      <div id="cardPopular1" class="card rounded-xl p-4 relative overflow-hidden summary-card-hover">
         <i class="fa-solid fa-fire text-emerald-400/10 text-4xl absolute -bottom-2 -right-2"></i>
         <div class="text-[11px] muted flex justify-between items-center">
           <span>인기 1위</span>
@@ -79,7 +82,8 @@ body{background:#080d18}
         <div id="todayPopularTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
         <div id="todayPopularMeta" class="text-[11px] text-emerald-300 mt-1 truncate relative z-10">-</div>
       </div>
-      <div class="card rounded-xl p-4 relative overflow-hidden">
+      <!-- 2. 매출 1위 -->
+      <div id="cardSales1" class="card rounded-xl p-4 relative overflow-hidden summary-card-hover">
         <i class="fa-solid fa-coins text-indigo-400/10 text-4xl absolute -bottom-2 -right-2"></i>
         <div class="text-[11px] muted flex justify-between items-center">
           <span>매출 1위</span>
@@ -88,23 +92,38 @@ body{background:#080d18}
         <div id="todaySalesTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
         <div id="todaySalesMeta" class="text-[11px] text-indigo-300 mt-1 truncate relative z-10">-</div>
       </div>
-      <div class="card rounded-xl p-4 relative overflow-hidden">
+      <!-- 3. 인기순위 신규 진입 (1위 단독노출 적용) -->
+      <div id="cardNew1" class="card rounded-xl p-4 relative overflow-hidden summary-card-hover">
         <i class="fa-solid fa-seedling text-sky-400/10 text-4xl absolute -bottom-2 -right-2"></i>
-        <div class="text-[11px] muted">인기순위 신규 진입</div>
-        <div id="todayNewCount" class="text-2xl font-bold mt-1 relative z-10">-</div>
+        <div class="text-[11px] muted flex justify-between items-center">
+          <span>인기순위 신규 진입</span>
+          <span id="todayNewChange"></span>
+        </div>
+        <div id="todayNewTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
         <div id="todayNewMeta" class="text-[11px] text-sky-300 mt-1 truncate relative z-10">-</div>
       </div>
-      <div class="card rounded-xl p-4 relative overflow-hidden">
+      <!-- 4. 매출 최고 상승 (1위 단독노출 적용) -->
+      <div id="cardRising1" class="card rounded-xl p-4 relative overflow-hidden summary-card-hover">
         <i class="fa-solid fa-rocket text-rose-400/10 text-4xl absolute -bottom-2 -right-2"></i>
-        <div class="text-[11px] muted">매출 최고 상승</div>
-        <div id="todayRisingTop" class="text-sm font-bold mt-2 truncate relative z-10">-</div>
-        <div id="todayRisingMeta" class="text-[11px] rank-up mt-1 relative z-10">전일 대비</div>
+        <div class="text-[11px] muted flex justify-between items-center">
+          <span>매출 최고 상승</span>
+          <span id="todayRisingChange"></span>
+        </div>
+        <div id="todayRisingTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
+        <div id="todayRisingMeta" class="text-[11px] rank-up mt-1 truncate relative z-10">-</div>
       </div>
-      <div class="card rounded-xl p-4 relative overflow-hidden">
-        <i class="fa-solid fa-crown text-amber-400/10 text-4xl absolute -bottom-2 -right-2"></i>
-        <div class="text-[11px] muted">장르 점유 (매출순)</div>
-        <div id="todayTopGenre" class="text-lg font-bold mt-1 truncate relative z-10">-</div>
-        <div id="todayTopGenreMeta" class="text-[11px] text-amber-300 mt-1 relative z-10">-</div>
+      <!-- 5. 장르 점유 (미니 도넛 차트 적용) -->
+      <div class="card rounded-xl p-4 relative overflow-hidden flex flex-col justify-between">
+        <i class="fa-solid fa-crown text-amber-400/10 text-4xl absolute -bottom-2 -right-2 z-0"></i>
+        <div class="text-[11px] muted mb-2 relative z-10">장르 점유 (매출순)</div>
+        <div class="flex items-center gap-2 h-full relative z-10">
+          <div class="w-11 h-11 shrink-0 relative">
+            <canvas id="todayGenreDonut"></canvas>
+          </div>
+          <div id="todayGenreLegend" class="flex flex-col justify-center text-[10px] gap-0.5 flex-1 w-0 font-medium">
+            <!-- 범례 렌더링 -->
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -309,6 +328,7 @@ const SHEETS = {
 
 const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
 let currentView='dashboard';
+let todayGenreDonutInst = null; // 미니 차트 인스턴스 저장용
 
 const aliases={
   date:['날짜','일자','date','수집일','기준일'],
@@ -513,31 +533,70 @@ function renderToday(){
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
 
+  // 1. 인기 1위 처리 및 클릭 바인딩
   const topPop=p.popularTop10[0];
   setText('todayPopularTop', topPop ? topPop.name : '-');
   setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
   document.getElementById('todayPopChange').innerHTML = topPop ? rankChangeBadge(topPop.change) : '';
+  document.getElementById('cardPopular1').onclick = () => { if(topPop) openGameDetail(topPop.name); };
 
+  // 2. 매출 1위 처리 및 클릭 바인딩
   const topSales=p.salesTop10[0];
   setText('todaySalesTop', topSales ? topSales.name : '-');
   setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
   document.getElementById('todaySalesChange').innerHTML = topSales ? rankChangeBadge(topSales.change) : '';
+  document.getElementById('cardSales1').onclick = () => { if(topSales) openGameDetail(topSales.name); };
 
-  setText('todayNewCount', p.newEntries.length.toLocaleString()+'개');
-  setText('todayNewMeta', p.newEntries.length > 0 ? `최고 진입: ${p.newEntries[0].name} (${p.newEntries[0].rank}위)` : 'TOP100 기준');
+  // 3. 인기순위 신규 진입 (1위 단독 노출)
+  const topNew = p.newEntries[0];
+  setText('todayNewTop', topNew ? topNew.name : '-');
+  setText('todayNewMeta', topNew ? `현재 ${topNew.rank}위 (최고 진입)` : '신규 진입 없음');
+  document.getElementById('todayNewChange').innerHTML = topNew ? '<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>' : '';
+  document.getElementById('cardNew1').onclick = () => { if(topNew) openGameDetail(topNew.name); };
 
-  const topRise=p.salesRising[0];
-  setText('todayRisingTop', topRise ? `${topRise.name} (${topRise.change})` : '-');
+  // 4. 매출 최고 상승 (1위 단독 노출)
+  const topRise = p.salesRising[0];
+  setText('todayRisingTop', topRise ? topRise.name : '-');
   setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
+  document.getElementById('todayRisingChange').innerHTML = topRise ? rankChangeBadge(topRise.change) : '';
+  document.getElementById('cardRising1').onclick = () => { if(topRise) openGameDetail(topRise.name); };
 
-  const topGenreObj = p.salesGenre[0];
-  if(topGenreObj) {
-    const totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0);
-    const ratio = totalCount > 0 ? ((topGenreObj.count / totalCount) * 100).toFixed(0) : 0;
-    setText('todayTopGenre', topGenreObj.genre);
-    setText('todayTopGenreMeta', `TOP100 중 ${ratio}% (${topGenreObj.count}개)`);
+  // 5. 장르 점유 도넛 차트 렌더링
+  if(todayGenreDonutInst) todayGenreDonutInst.destroy();
+  const top3Genres = p.salesGenre.slice(0, 3);
+  const totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0);
+  const donutColors = ['#fbbf24', '#34d399', '#818cf8'];
+
+  if(top3Genres.length > 0) {
+    const ctx = document.getElementById('todayGenreDonut').getContext('2d');
+    todayGenreDonutInst = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: top3Genres.map(g => g.genre),
+        datasets: [{
+          data: top3Genres.map(g => g.count),
+          backgroundColor: donutColors,
+          borderWidth: 0,
+          hoverOffset: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '70%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        layout: { padding: 0 }
+      }
+    });
+
+    // 도넛 차트 범례 렌더링
+    document.getElementById('todayGenreLegend').innerHTML = top3Genres.map((g, i) => {
+      const pct = totalCount > 0 ? ((g.count / totalCount) * 100).toFixed(0) : 0;
+      return `<div class="truncate flex items-center text-slate-300"><span class="w-1.5 h-1.5 inline-block rounded-full mr-1.5 shrink-0" style="background:${donutColors[i]}"></span><span class="truncate">${g.genre} ${pct}%</span></div>`;
+    }).join('');
+  } else {
+    document.getElementById('todayGenreLegend').innerHTML = '<div class="muted">데이터 없음</div>';
   }
   
+  // 리스트 및 기타 차트 렌더링
   renderRankList('popularTop10List',p.popularTop10,{showMeta:true});
   renderRankList('salesTop10List',p.salesTop10,{showMeta:true});
   renderRankList('newEntriesList',p.newEntries,{showMeta:true});
@@ -611,15 +670,14 @@ function renderSearchCharts(){
   if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,titles.length?titles:top10Titles(rawStore.sales),colors);
 }
 
-// ---- 매출/인기 DB: [연도] [월] [일] 3개 드롭다운 동기화 로직 ----
 function setupDateSelect(){
   const data = rawStore[currentView];
   if(!data) return;
-  const dates = getDates(data).reverse(); // 최신순
+  const dates = getDates(data).reverse(); 
 
   const ySet = new Set();
-  const ymMap = {}; // { '2026': ['09', '08'] }
-  const ymdMap = {}; // { '2026-09': ['2026-09-07', '2026-09-06'] }
+  const ymMap = {}; 
+  const ymdMap = {}; 
 
   dates.forEach(d => {
     const y = d.slice(0, 4);
@@ -637,7 +695,6 @@ function setupDateSelect(){
   const ySel = document.getElementById('filterYear');
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
-  // 투데이(갱신일) 기준 혹은 최신일자 추출
   const snap = rawStore.snapshot;
   let todayStr = '';
   if(snap){
@@ -699,8 +756,6 @@ function onMonthChange(){
   updateDaySelect(y, m);
 }
 
-
-// ---- 신작 정보 DB: [연도] [월] 2개 드롭다운 동기화 로직 ----
 function setupNewReleasesDateSelect(){
   const data = rawStore.newReleases;
   if(!data) return;
@@ -763,7 +818,6 @@ function onNewReleasesYearChange(){
   const y = document.getElementById('filterYear').value;
   updateNewReleasesMonthSelect(y);
 }
-
 
 function filterCurrentTable(){
   const data = rawStore[currentView];
@@ -833,14 +887,14 @@ function renderDatabase(view){
     if(view === 'newReleases') {
       mobileWrap.classList.remove('hidden');
       mobileWrap.classList.add('flex');
-      fDay.classList.add('hidden'); // 신작 정보는 일(day) 숨김
+      fDay.classList.add('hidden'); 
       fYear.onchange = onNewReleasesYearChange;
       fMonth.onchange = filterCurrentTable;
       setupNewReleasesDateSelect();
     } else {
       mobileWrap.classList.add('hidden');
       mobileWrap.classList.remove('flex');
-      fDay.classList.remove('hidden'); // 매출/인기는 일(day) 표시
+      fDay.classList.remove('hidden'); 
       fYear.onchange = onYearChange;
       fMonth.onchange = onMonthChange;
       const chk = document.getElementById('mobileFilter');
