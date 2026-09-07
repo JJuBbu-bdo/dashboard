@@ -40,22 +40,22 @@
         <div class="text-xs text-emerald-400 mt-1 flex items-center gap-1"><i class="fa-solid fa-fire"></i> Google Play Top Free</div>
       </div>
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-sm">
-        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">추적 중인 타이틀 수</div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">추적 중인 타이틀 수 (매출 기준)</div>
         <div id="kpiTrackedCount" class="text-2xl font-bold text-white mt-2">-</div>
-        <div class="text-xs text-slate-400 mt-1">DB_매출순위 기준</div>
+        <div class="text-xs text-slate-400 mt-1">고유 앱 개수</div>
       </div>
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-sm">
-        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">이번 달 등록된 신작</div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">추적 중인 타이틀 수 (인기 기준)</div>
         <div id="kpiNewReleaseCount" class="text-2xl font-bold text-white mt-2">-</div>
-        <div class="text-xs text-amber-400 mt-1"><i class="fa-solid fa-sparkles"></i> 월간신작DB 기준</div>
+        <div class="text-xs text-amber-400 mt-1">고유 앱 개수</div>
       </div>
     </div>
 
     <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-sm">
       <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 gap-4">
         <div>
-          <h2 class="text-lg font-semibold text-white">타이틀별 순위 변동 추이</h2>
-          <p class="text-xs text-slate-400">1위가 상단에 표시되는 역축(Inverted Axis) 차트</p>
+          <h2 class="text-lg font-semibold text-white">타이틀별 매출 순위 변동 추이</h2>
+          <p class="text-xs text-slate-400">기본값: 최신 일자 기준 Top 5 타이틀 표시</p>
         </div>
         <div class="flex items-center gap-2">
           <input type="text" id="chartFilterInput" placeholder="비교할 게임명 입력 (쉼표 구분)" 
@@ -80,16 +80,14 @@
           월간 신작 DB
         </button>
       </div>
-
       <div class="p-4 border-b border-slate-700/40 flex justify-between items-center gap-4">
         <div class="relative w-72">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-          <input type="text" id="tableSearch" onkeyup="filterCurrentTable()" placeholder="게임명 또는 퍼블리셔 검색..." 
+          <input type="text" id="tableSearch" onkeyup="filterCurrentTable()" placeholder="게임명, 장르 또는 퍼블리셔 검색..." 
                  class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
         </div>
         <div id="tableRowCount" class="text-xs text-slate-400">데이터 수집 중...</div>
       </div>
-
       <div class="overflow-x-auto max-h-96">
         <table class="w-full text-left border-collapse text-xs">
           <thead id="tableHead" class="bg-slate-900/80 sticky top-0 border-b border-slate-700 text-slate-300"></thead>
@@ -97,22 +95,18 @@
         </table>
       </div>
     </div>
-
   </div>
 
   <script>
     const SPREADSHEET_ID = '1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw';
-    let rawStore = { sales: [], popular: [], newReleases: [] };
+    let rawStore = { sales: null, popular: null, newReleases: null };
     let currentTab = 'sales';
     let chartInstance = null;
 
-    // 1. Google Visualization API를 통한 시트별 JSON 파싱 함수
     async function fetchSheetData(sheetName) {
       const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
       const res = await fetch(url);
       const text = await res.text();
-      
-      // JSON 파싱 (gviz wrapper 제거)
       const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
       const json = JSON.parse(jsonString);
       
@@ -121,7 +115,6 @@
       return { cols, rows };
     }
 
-    // 2. 전체 데이터 호출 및 화면 갱신
     async function fetchAllData() {
       const statusEl = document.getElementById('syncStatus');
       statusEl.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> 데이터 동기화 중...';
@@ -144,42 +137,61 @@
         statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> 정상 동기화 완료';
       } catch (err) {
         console.error(err);
-        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span> 동기화 실패 (공유 권한 확인 필요)';
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span> 동기화 실패';
       }
     }
 
-    // 3. 상단 KPI 카드 렌더링
     function renderKPIs() {
-      if (rawStore.sales.rows.length > 0) {
-        // 첫 번째 행 데이터를 1위로 가정 (데이터 구조에 맞게 컬럼 인덱스 매핑)
-        document.getElementById('kpiTopGrossing').textContent = rawStore.sales.rows[0][1] || rawStore.sales.rows[0][0] || '-';
-        document.getElementById('kpiTrackedCount').textContent = rawStore.sales.rows.length.toLocaleString() + '개';
-      }
-      if (rawStore.popular.rows.length > 0) {
-        document.getElementById('kpiTopFree').textContent = rawStore.popular.rows[0][1] || rawStore.popular.rows[0][0] || '-';
-      }
-      if (rawStore.newReleases.rows.length > 0) {
-        document.getElementById('kpiNewReleaseCount').textContent = rawStore.newReleases.rows.length.toLocaleString() + '건';
-      }
+      // 순위 컬럼(인덱스 1)이 '1'인 행을 찾아 앱이름(인덱스 3) 추출
+      const topGrossingRow = rawStore.sales.rows.find(r => Number(r[1]) === 1);
+      document.getElementById('kpiTopGrossing').textContent = topGrossingRow ? topGrossingRow[3] : '-';
+
+      const topFreeRow = rawStore.popular.rows.find(r => Number(r[1]) === 1);
+      document.getElementById('kpiTopFree').textContent = topFreeRow ? topFreeRow[3] : '-';
+
+      // 중복을 제거한 고유 앱 개수 산출
+      const uniqueSalesApps = new Set(rawStore.sales.rows.map(r => r[3]).filter(Boolean));
+      document.getElementById('kpiTrackedCount').textContent = uniqueSalesApps.size.toLocaleString() + '개';
+
+      const uniqueFreeApps = new Set(rawStore.popular.rows.map(r => r[3]).filter(Boolean));
+      document.getElementById('kpiNewReleaseCount').textContent = uniqueFreeApps.size.toLocaleString() + '개';
     }
 
-    // 4. 순위 추이 라인 차트 (Chart.js Y축 역순)
-    function renderChart() {
+    function renderChart(filterQuery = '') {
       const ctx = document.getElementById('rankChart').getContext('2d');
+      const rows = rawStore.sales.rows;
+
+      // X축 데이터: 날짜 (인덱스 0) 중복 제거 후 오름차순 정렬
+      const dates = [...new Set(rows.map(r => r[0]).filter(Boolean))].sort();
       
-      // 시트 구조에서 최근 날짜(컬럼) 및 랭킹 데이터 추출
-      const labels = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Today'];
-      
-      // 상위 3개 게임 임의 트래킹 데이터셋 구성 (실제 시계열 컬럼에 맞춰 조정 가능)
-      const datasets = rawStore.sales.rows.slice(0, 3).map((row, idx) => {
-        const colors = ['#818cf8', '#34d399', '#fbbf24'];
+      let targetApps = [];
+      if (filterQuery) {
+        targetApps = filterQuery.split(',').map(s => s.trim()).filter(Boolean);
+      } else {
+        // 검색어가 없으면 최신 날짜 기준 Top 5 자동 추출
+        const latestDate = dates[dates.length - 1];
+        targetApps = rows
+          .filter(r => r[0] === latestDate)
+          .sort((a, b) => Number(a[1]) - Number(b[1]))
+          .slice(0, 5)
+          .map(r => r[3]);
+      }
+
+      const colors = ['#818cf8', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#2dd4bf', '#fb923c'];
+      const datasets = targetApps.map((appName, idx) => {
+        const data = dates.map(date => {
+          const record = rows.find(r => r[0] === date && r[3] === appName);
+          return record ? Number(record[1]) : null;
+        });
+        
         return {
-          label: row[1] || `Game ${idx + 1}`,
-          data: [idx + 3, idx + 2, idx + 4, idx + 1, idx + 2, idx + 1, idx + 1],
+          label: appName,
+          data: data,
           borderColor: colors[idx % colors.length],
           backgroundColor: 'transparent',
           tension: 0.3,
-          borderWidth: 2
+          borderWidth: 2,
+          spanGaps: true
         };
       });
 
@@ -187,7 +199,7 @@
 
       chartInstance = new Chart(ctx, {
         type: 'line',
-        data: { labels, datasets },
+        data: { labels: dates, datasets },
         options: {
           responsive: true,
           maintainAspectRatio: false,
@@ -198,9 +210,9 @@
           scales: {
             x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
             y: {
-              reverse: true, // [중요] 1위가 가장 위로 오도록 역축 처리
+              reverse: true,
               min: 1,
-              suggestedMax: 50,
+              suggestedMax: 20,
               grid: { color: '#334155' },
               ticks: { color: '#94a3b8', stepSize: 10 }
             }
@@ -209,7 +221,11 @@
       });
     }
 
-    // 5. 탭 전환 & 테이블 렌더링
+    function updateChartFilter() {
+      const query = document.getElementById('chartFilterInput').value;
+      renderChart(query);
+    }
+
     function switchTab(tabKey) {
       currentTab = tabKey;
       ['sales', 'popular', 'newReleases'].forEach(key => {
@@ -227,15 +243,11 @@
     function renderTable() {
       const data = rawStore[currentTab];
       const thead = document.getElementById('tableHead');
-      const tbody = document.getElementById('tableBody');
       const countEl = document.getElementById('tableRowCount');
 
       if (!data || !data.rows) return;
 
-      // 헤더 생성
-      thead.innerHTML = `<tr>${data.cols.map(c => `<th class="px-4 py-2.5 font-medium">${c || '-'}</th>`).join('')}</tr>`;
-
-      // 바디 생성
+      thead.innerHTML = `<tr>${data.cols.map(c => `<th class="px-4 py-2.5 font-medium whitespace-nowrap">${c || '-'}</th>`).join('')}</tr>`;
       renderRows(data.rows);
       countEl.textContent = `총 ${data.rows.length.toLocaleString()}개 행`;
     }
@@ -243,17 +255,16 @@
     function renderRows(rows) {
       const tbody = document.getElementById('tableBody');
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="100%" class="px-4 py-8 text-center text-slate-500">검색 결과가 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="100%" class="px-4 py-8 text-center text-slate-500">데이터가 없습니다.</td></tr>`;
         return;
       }
       tbody.innerHTML = rows.map(row => `
         <tr class="hover:bg-slate-800/40 transition-colors">
-          ${row.map(cell => `<td class="px-4 py-2.5 whitespace-nowrap">${cell !== '' ? cell : '-'}</td>`).join('')}
+          ${row.map(cell => `<td class="px-4 py-2.5 whitespace-nowrap">${cell !== '' && cell !== null ? cell : '-'}</td>`).join('')}
         </tr>
       `).join('');
     }
 
-    // 테이블 실시간 검색 필터
     function filterCurrentTable() {
       const query = document.getElementById('tableSearch').value.toLowerCase();
       const allRows = rawStore[currentTab].rows;
@@ -262,7 +273,6 @@
       document.getElementById('tableRowCount').textContent = `검색 결과: ${filtered.length.toLocaleString()}개 행`;
     }
 
-    // 초기 실행
     window.addEventListener('DOMContentLoaded', fetchAllData);
   </script>
 </body>
