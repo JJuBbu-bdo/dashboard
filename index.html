@@ -200,11 +200,16 @@ body{background:#080d18}
         <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
       </div>
       <div class="flex gap-2 items-center">
-        <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
-          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
-        <select id="tableDate" onchange="filterCurrentTable()"
-          class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
-      </div>
+  <!-- 모바일 전용 필터 (월간 신작 DB에서만 노출되도록 hidden 처리) -->
+  <label id="mobileFilterWrap" class="hidden items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer text-slate-300 hover:bg-slate-700 transition-colors">
+    <input type="checkbox" id="mobileFilter" onchange="filterCurrentTable()" class="accent-indigo-500"> 모바일 게임만
+  </label>
+  
+  <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
+    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-72 max-w-full">
+  <select id="tableDate" onchange="filterCurrentTable()"
+    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs"></select>
+</div>
     </div>
     <div class="px-4 py-3 border-b border-slate-800 flex justify-between">
       <span id="dbDataDate" class="text-xs muted">-</span>
