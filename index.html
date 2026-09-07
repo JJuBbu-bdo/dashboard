@@ -302,12 +302,19 @@ function parseGviz(text){
   const start=text.indexOf('{'),end=text.lastIndexOf('}');
   if(start<0||end<start)throw new Error('Google Sheets 응답을 읽을 수 없습니다.');
   const json=JSON.parse(text.slice(start,end+1));
-  const cols=(json.table?.cols||[]).map(c=>c?.label||c?.id||'');
-  const rows=(json.table?.rows||[]).map(r=>{
+  
+  let cols=(json.table?.cols||[]).map(c=>c?.label||c?.id||'');
+  let rows=(json.table?.rows||[]).map(r=>{
     const cells=r.c||[],arr=[];
     for(let i=0;i<cols.length;i++)arr.push(cleanValue(cells[i]));
     return arr;
   });
+
+  // 컬럼명이 A, B, C 등으로만 반환된 경우 데이터의 첫 행을 헤더로 사용
+  if(cols.length > 0 && cols.every(c => /^[A-Z]+$/.test(c)) && rows.length > 0) {
+    cols = rows.shift();
+  }
+  
   return {cols,rows};
 }
 
@@ -414,14 +421,14 @@ function parseSnapshotSheet(data){
 
   // '■ 일간 인기순위 ...' 라벨 행 기준: 라벨(+0) → 빈 줄(+1) → 헤더(+2) → 데이터 시작(+3)
   const topRow=findRowIndex(rows,'일간 인기순위');
-  const popularTop10=topRow>=0?readRankBlock(rows,topRow+3,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
-  const salesTop10=topRow>=0?readRankBlock(rows,topRow+3,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
+  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
+  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
 
   // '■ 인기순위(신규 진입)' / '■ 매출 급상승' / '■ 매출 급하락'은 같은 행에 나란히 있음
   const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
-  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+3,{rank:1,name:2,genre:3,publisher:4},10):[];
-  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+3,{rank:7,name:8,change:9},10):[];
-  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+3,{rank:10,name:11,change:12},10):[];
+  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:3,publisher:4},10):[];
+  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:7,name:8,change:9},10):[];
+  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:10,name:11,change:12},10):[];
 
   // 'TOP100 장르 비중(인기순)' / '(매출순)'은 라벨(+0) → count 라벨(+1) → 데이터 시작(+2)
   const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
