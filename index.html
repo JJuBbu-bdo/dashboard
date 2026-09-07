@@ -628,8 +628,22 @@ function filterCurrentTable(){
   if(!data)return;
   const s=schema(data), q=document.getElementById('tableSearch').value.toLowerCase().trim(), date=document.getElementById('tableDate').value;
   let rows=data.rows;
+  
   if(date&&s.date>=0)rows=rows.filter(r=>r[s.date]===date);
   if(q)rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
+  
+  // 월간 신작 DB - 모바일 필터링 로직 추가
+  if(currentView === 'newReleases') {
+    const isMobileChecked = document.getElementById('mobileFilter')?.checked;
+    if(isMobileChecked && s.platform >= 0) {
+      rows = rows.filter(r => {
+        // 공백 제거 후 '모바일' 문자열 포함 여부 검사 (스크래핑 데이터 오차 방어)
+        const platformStr = String(r[s.platform] ?? '').replace(/\s+/g, '');
+        return platformStr.includes('모바일');
+      });
+    }
+  }
+
   if(s.rank>=0)rows=rows.slice().sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999));
   
   const hidden=data.cols.map(c=>['증감수치','증감','change'].includes(norm(c)));
@@ -641,6 +655,7 @@ function filterCurrentTable(){
     return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">`+
     visibleIndexes.map(i=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('')+'</tr>';
   }).join(''):'<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
+  
   setText('tableRowCount',`${rows.length.toLocaleString()}행`);
   setText('dbDataDate',date?`선택 날짜 · ${date}`:`전체 ${data.rows.length.toLocaleString()}행`);
 }
@@ -648,11 +663,27 @@ function filterCurrentTable(){
 function renderDatabase(view){
   const data=rawStore[view];
   if(!data)return;
+  
   const search=document.getElementById('tableSearch');
   if(search) search.placeholder=view==='newReleases'?'게임명 / 퍼블리셔 검색':'게임명 / 장르 / 퍼블리셔 검색';
+  
   const title={sales:'매출 순위 DB',popular:'인기 순위 DB',newReleases:'월간 신작 DB'}[view];
   const desc={sales:'일자별 Google Play 매출 순위 원본 데이터',popular:'일자별 Google Play 인기 순위 원본 데이터',newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
   setText('dbTitle',title); setText('dbDescription',desc);
+
+  // 모바일 필터 버튼 노출 제어 (신작 DB에서만 보이기)
+  const mobileWrap = document.getElementById('mobileFilterWrap');
+  if(mobileWrap) {
+    if(view === 'newReleases') {
+      mobileWrap.classList.remove('hidden');
+      mobileWrap.classList.add('flex');
+      document.getElementById('mobileFilter').checked = false; // 탭 이동 시 체크박스 초기화
+    } else {
+      mobileWrap.classList.add('hidden');
+      mobileWrap.classList.remove('flex');
+    }
+  }
+
   document.getElementById('tableSearch').value='';
   setupDateSelect(); filterCurrentTable();
 }
