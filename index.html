@@ -447,13 +447,31 @@ function parseSnapshotSheet(data){
 }
 
 function rankChangeBadge(change, large=false){
-  const c=String(change||'').trim();
+  const c = String(change||'').trim();
   const textClass = large ? 'text-sm' : 'text-[11px]';
-  if(!c) return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
-  if(c.startsWith('▲'))return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  if(c.startsWith('▼'))return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  if(c.includes('유지')||c==='-')return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
-  if(/new/i.test(c))return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
+  
+  // 값이 없거나, 0이거나, 유지인 경우
+  if(!c || c === '-' || c === '0' || c.includes('유지')) {
+    return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
+  }
+  
+  // NEW 인 경우
+  if(/new/i.test(c)) {
+    return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
+  }
+
+  // 텍스트에 이미 화살표가 있는 경우 (Daily 스냅샷 등)
+  if(c.startsWith('▲')) return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
+  if(c.startsWith('▼')) return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
+
+  // DB에서 순수 숫자(예: "5", "-3")만 들어왔을 때 자동으로 화살표와 색상 부여
+  const num = Number(c);
+  if(!isNaN(num)) {
+    if(num > 0) return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">▲ ${num}</span>`;
+    if(num < 0) return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">▼ ${Math.abs(num)}</span>`;
+  }
+
+  // 그 외 예외 텍스트
   return `<span class="rank-flat ${textClass}">${escapeHtml(c)}</span>`;
 }
 
