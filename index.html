@@ -11,14 +11,14 @@
 body{background:#080d18}
 .card{background:rgba(15,23,42,.86);border:1px solid rgba(71,85,105,.5)}
 .muted{color:#94a3b8}
-.tab{font-size:12px;font-weight:600;color:#64748b;padding:10px 15px;border-bottom:2px solid transparent}
+.tab{font-size:12px;font-weight:600;color:#64748b;padding:10px 15px;border-bottom:2px solid transparent; cursor:pointer;}
 .tab:hover{color:#cbd5e1}.tab.active{color:#818cf8;border-color:#6366f1}
 .rank-up{color:#34d399}.rank-down{color:#fb7185}.rank-flat{color:#94a3b8}
 .scrollbar::-webkit-scrollbar{height:7px;width:7px}.scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
 </style>
 </head>
 
-<body class="text-slate-100 min-h-screen">
+<body class="text-slate-100 min-h-screen relative overflow-x-hidden">
 <div class="max-w-[1500px] mx-auto px-4 md:px-6 py-5">
 
 <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
@@ -32,7 +32,7 @@ body{background:#080d18}
   <div class="flex items-center gap-2">
     <span id="todayLabel" class="text-xs muted"></span>
     <span id="syncStatus" class="text-xs px-3 py-1.5 rounded-full bg-slate-800 text-slate-400">초기화 중</span>
-    <button id="refreshBtn" onclick="fetchAllData()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold">
+    <button id="refreshBtn" onclick="fetchAllData()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold transition-colors">
       <i class="fa-solid fa-rotate mr-1"></i> 새로고침
     </button>
   </div>
@@ -62,7 +62,6 @@ body{background:#080d18}
 <main>
 <!-- DASHBOARD -->
 <div id="view-dashboard" class="space-y-5">
-
   <section class="mb-5">
     <div class="flex items-end justify-between mb-3">
       <div>
@@ -70,8 +69,6 @@ body{background:#080d18}
       </div>
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
-
-    <!-- 5열 그리드로 변경하고 아이콘 뱃지 및 메타데이터 추가 -->
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
       <div class="card rounded-xl p-4 relative overflow-hidden">
         <i class="fa-solid fa-fire text-emerald-400/10 text-4xl absolute -bottom-2 -right-2"></i>
@@ -157,7 +154,6 @@ body{background:#080d18}
       <div id="salesGenreBars"></div>
     </div>
   </section>
-
 </div>
 
 <!-- SEARCH VIEW -->
@@ -177,17 +173,13 @@ body{background:#080d18}
         </label>
       </div>
     </div>
-
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
       <input id="searchTitle1" list="gameNameOptions" placeholder="게임 1 검색"
-        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
-        oninput="renderSearchCharts()">
+        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500" oninput="renderSearchCharts()">
       <input id="searchTitle2" list="gameNameOptions" placeholder="게임 2 검색 (비교, 선택)"
-        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
-        oninput="renderSearchCharts()">
+        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500" oninput="renderSearchCharts()">
       <datalist id="gameNameOptions"></datalist>
     </div>
-
     <div id="searchPopularWrap" class="mb-6">
       <div class="text-xs font-semibold muted mb-2"><i class="fa-solid fa-fire text-emerald-400 mr-1"></i>인기 순위 추이</div>
       <div class="h-[300px]"><canvas id="searchPopularChart"></canvas></div>
@@ -205,7 +197,7 @@ body{background:#080d18}
     <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800">
       <div>
         <h2 id="dbTitle" class="font-semibold">DB</h2>
-        <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회</p>
+        <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
       </div>
       <div class="flex gap-2 items-center">
         <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
@@ -230,8 +222,77 @@ body{background:#080d18}
 </main>
 
 <footer class="text-[11px] muted text-center py-5">
-  jd
+  Google Sheets 기반 대시보드
 </footer>
+</div>
+
+<!-- GAME DETAIL SIDE PANEL -->
+<div id="detailOverlay" class="fixed inset-0 bg-black/70 z-40 hidden opacity-0 transition-opacity duration-300" onclick="closeGameDetail()"></div>
+<div id="detailPanel" class="fixed top-0 right-0 w-full max-w-[450px] h-full bg-slate-900 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 overflow-y-auto border-l border-slate-700 flex flex-col">
+  <!-- Panel Header -->
+  <div class="p-5 border-b border-slate-800 flex justify-between items-start sticky top-0 bg-slate-900/95 backdrop-blur z-20">
+    <div class="pr-4">
+      <div class="text-[11px] text-indigo-400 font-semibold mb-1 truncate" id="detailGenrePub">-</div>
+      <h2 class="text-xl font-bold leading-tight" id="detailTitle">-</h2>
+    </div>
+    <button onclick="closeGameDetail()" class="text-slate-400 hover:text-white mt-1 shrink-0"><i class="fa-solid fa-xmark text-xl"></i></button>
+  </div>
+  
+  <div class="p-5 space-y-6 flex-1">
+    <!-- Action Link -->
+    <a id="detailPlayStoreLink" href="#" target="_blank" class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold transition-colors">
+      <i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 검색
+    </a>
+
+    <!-- Current Status Cards -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-800/30">
+        <div class="text-[11px] muted mb-1"><i class="fa-solid fa-coins text-indigo-400 mr-1.5"></i>현재 매출 순위</div>
+        <div class="flex items-end gap-2 mt-2">
+          <span class="text-2xl font-bold" id="detailSalesRank">-</span> 
+          <span id="detailSalesChange" class="mb-0.5"></span>
+        </div>
+      </div>
+      <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-800/30">
+        <div class="text-[11px] muted mb-1"><i class="fa-solid fa-fire text-emerald-400 mr-1.5"></i>현재 인기 순위</div>
+        <div class="flex items-end gap-2 mt-2">
+          <span class="text-2xl font-bold" id="detailPopRank">-</span> 
+          <span id="detailPopChange" class="mb-0.5"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dual Trend Chart -->
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-sm font-semibold">순위 복합 추이 (최근 30일)</h4>
+        <div class="flex items-center gap-3 text-[10px] font-medium">
+          <span class="flex items-center gap-1 text-indigo-300"><span class="w-2 h-2 rounded-full bg-indigo-400"></span>매출</span>
+          <span class="flex items-center gap-1 text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>인기</span>
+        </div>
+      </div>
+      <div class="h-[220px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailChart"></canvas></div>
+    </div>
+
+    <!-- Analytics Metrics -->
+    <div>
+      <h4 class="text-sm font-semibold mb-3">순위 분석 <span class="text-[11px] muted font-normal ml-1">(최근 30일 데이터 기준)</span></h4>
+      <div class="card rounded-xl border-slate-700/50 divide-y divide-slate-700/50 text-sm">
+        <div class="flex justify-between items-center p-3.5">
+          <span class="muted text-xs">최고 매출 순위</span><span class="font-bold text-indigo-300" id="detailSalesHigh">-</span>
+        </div>
+        <div class="flex justify-between items-center p-3.5">
+          <span class="muted text-xs">평균 매출 순위</span><span class="font-bold text-slate-200" id="detailSalesAvg">-</span>
+        </div>
+        <div class="flex justify-between items-center p-3.5">
+          <span class="muted text-xs">최고 인기 순위</span><span class="font-bold text-emerald-300" id="detailPopHigh">-</span>
+        </div>
+        <div class="flex justify-between items-center p-3.5">
+          <span class="muted text-xs">TOP 10 진입 일수</span><span class="font-bold text-slate-200" id="detailTop10Days">-</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -253,9 +314,7 @@ const aliases={
   name:['앱이름','게임명','게임이름','앱 이름','앱명','title','name','타이틀'],
   genre:['장르','genre','카테고리','category'],
   publisher:['퍼블리셔','개발사','회사','publisher','developer'],
-  releaseDate:['출시일','release date','releasedate'],
-  platform:['플랫폼','platform'],
-  releaseType:['출시유형','출시 유형','release type','releasetype']
+  change:['증감수치','증감','change']
 };
 
 function norm(v){return String(v??'').trim().toLowerCase().replace(/\s+/g,'');}
@@ -275,22 +334,18 @@ function schema(data){
     name:findCol(c,'name'),
     genre:findCol(c,'genre'),
     publisher:findCol(c,'publisher'),
-    releaseDate:findCol(c,'releaseDate'),
-    platform:findCol(c,'platform'),
-    releaseType:findCol(c,'releaseType')
+    change:findCol(c,'change')
   };
 }
 
 function cleanValue(v){
   if(v===null||v===undefined)return '';
   let val = '';
-  
   if(typeof v==='object'){
     val = (v.f!==undefined&&v.f!==null&&v.f!=='') ? v.f : (v.v??'');
   } else {
     val = String(v).trim();
   }
-
   if (typeof val === 'string' && val.startsWith('Date(')) {
     const m = val.match(/Date\((\d+),(\d+),(\d+)/);
     if (m) {
@@ -307,18 +362,15 @@ function parseGviz(text){
   const start=text.indexOf('{'),end=text.lastIndexOf('}');
   if(start<0||end<start)throw new Error('Google Sheets 응답을 읽을 수 없습니다.');
   const json=JSON.parse(text.slice(start,end+1));
-  
   let cols=(json.table?.cols||[]).map(c=>c?.label||c?.id||'');
   let rows=(json.table?.rows||[]).map(r=>{
     const cells=r.c||[],arr=[];
     for(let i=0;i<cols.length;i++)arr.push(cleanValue(cells[i]));
     return arr;
   });
-
   if(cols.length > 0 && cols.every(c => /^[A-Z]+$/.test(c)) && rows.length > 0) {
     cols = rows.shift();
   }
-  
   return {cols,rows};
 }
 
@@ -338,8 +390,7 @@ function dateValue(v){
 function getDates(data){
   const s=schema(data);
   if(s.date<0)return [];
-  return [...new Set(data.rows.map(r=>r[s.date]).filter(Boolean))]
-    .sort((a,b)=>dateValue(a)-dateValue(b));
+  return [...new Set(data.rows.map(r=>r[s.date]).filter(Boolean))].sort((a,b)=>dateValue(a)-dateValue(b));
 }
 function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
@@ -348,29 +399,21 @@ function rankOf(row,data){
   const n=Number(String(row?.[s.rank]??'').replace(/[^0-9.-]/g,''));
   return Number.isFinite(n)&&n>0?n:null;
 }
-function setText(id,v){document.getElementById(id).textContent=v;}
+function setText(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
 function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
-
 function readRankBlock(rows,startRow,cols,maxRows){
   const out=[];
   for(let i=0;i<maxRows;i++){
     const r=startRow+i;
     const name=cellAt(rows,r,cols.name);
     if(!name)break;
-    out.push({
-      rank:cellAt(rows,r,cols.rank),
-      name,
-      genre:cols.genre!=null?cellAt(rows,r,cols.genre):'',
-      publisher:cols.publisher!=null?cellAt(rows,r,cols.publisher):'',
-      change:cols.change!=null?cellAt(rows,r,cols.change):''
-    });
+    out.push({rank:cellAt(rows,r,cols.rank),name,genre:cols.genre!=null?cellAt(rows,r,cols.genre):'',publisher:cols.publisher!=null?cellAt(rows,r,cols.publisher):'',change:cols.change!=null?cellAt(rows,r,cols.change):''});
   }
   return out;
 }
-
 function readGenreBlock(rows,startRow,nameCol,countCol,maxRows){
   const out=[];
   for(let i=0;i<maxRows;i++){
@@ -381,61 +424,44 @@ function readGenreBlock(rows,startRow,nameCol,countCol,maxRows){
   }
   return out;
 }
-
-function findRowIndex(rows,matchText,fromRow=0){
-  for(let r=fromRow;r<rows.length;r++){
-    const row=rows[r]||[];
-    if(row.some(cell=>String(cell??'').includes(matchText)))return r;
-  }
-  return -1;
-}
-function findColIndex(rows,rowIdx,matchText){
-  const row=rows[rowIdx]||[];
-  return row.findIndex(cell=>String(cell??'').includes(matchText));
-}
+function findRowIndex(rows,matchText,fromRow=0){for(let r=fromRow;r<rows.length;r++){if((rows[r]||[]).some(cell=>String(cell??'').includes(matchText)))return r;}return -1;}
+function findColIndex(rows,rowIdx,matchText){return (rows[rowIdx]||[]).findIndex(cell=>String(cell??'').includes(matchText));}
 
 function parseSnapshotSheet(data){
   const rows=data.rows;
-
   const dateRow=findRowIndex(rows,'기준일');
   let asOfDate='';
-  if(dateRow>=0){
-    const c=findColIndex(rows,dateRow,'기준일');
-    asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';
-  }
-
+  if(dateRow>=0){const c=findColIndex(rows,dateRow,'기준일');asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';}
   const topRow=findRowIndex(rows,'일간 인기순위');
   const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
   const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
-
   const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
   const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:3,publisher:4},10):[];
   const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:7,name:8,change:9},10):[];
   const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:10,name:11,change:12},10):[];
-
   const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
   const popularGenre=popGenreRow>=0?readGenreBlock(rows,popGenreRow+2,1,2,30):[];
   const salesGenreRow=findRowIndex(rows,'장르 비중(매출순)',changeRow+1);
   const salesGenre=salesGenreRow>=0?readGenreBlock(rows,salesGenreRow+2,4,5,30):[];
-
   return {asOfDate,popularTop10,salesTop10,newEntries,salesRising,salesFalling,popularGenre,salesGenre};
 }
 
-function rankChangeBadge(change){
+function rankChangeBadge(change, large=false){
   const c=String(change||'').trim();
-  if(!c) return `<span class="rank-flat text-[11px] font-semibold whitespace-nowrap">-</span>`;
-  if(c.startsWith('▲'))return `<span class="rank-up text-[11px] font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  if(c.startsWith('▼'))return `<span class="rank-down text-[11px] font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  if(c.includes('유지')||c==='-')return `<span class="rank-flat text-[11px] font-semibold whitespace-nowrap">-</span>`;
-  if(/new/i.test(c))return `<span class="text-indigo-300 text-[11px] font-semibold whitespace-nowrap">NEW</span>`;
-  return `<span class="rank-flat text-[11px]">${escapeHtml(c)}</span>`;
+  const textClass = large ? 'text-sm' : 'text-[11px]';
+  if(!c) return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
+  if(c.startsWith('▲'))return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
+  if(c.startsWith('▼'))return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
+  if(c.includes('유지')||c==='-')return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
+  if(/new/i.test(c))return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
+  return `<span class="rank-flat ${textClass}">${escapeHtml(c)}</span>`;
 }
 
 function renderRankList(elId,items,{showMeta=true}={}){
   const el=document.getElementById(elId);
   if(!items.length){el.innerHTML='<li class="text-xs muted py-2">데이터 없음</li>';return;}
   el.innerHTML=items.map(it=>`
-    <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0">
+    <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0 hover:bg-slate-800/30 cursor-pointer rounded px-1 transition-colors" onclick="openGameDetail('${escapeAttr(it.name)}')">
       <div class="flex items-center gap-2 min-w-0">
         <span class="text-[11px] muted w-6 text-right shrink-0">${escapeHtml(it.rank)}</span>
         <div class="min-w-0">
@@ -465,53 +491,39 @@ function renderToday(){
   const snap=rawStore.snapshot;
   if(!snap)return;
   const p=parseSnapshotSheet(snap);
-
   setText('todayLabel',p.asOfDate?`Today · ${p.asOfDate}`:'Today');
   setText('snapshotDate',p.asOfDate||'');
 
-  // 1. 인기 1위 업데이트 (장르/퍼블리셔 병기, 순위 변동 뱃지 분리)
   const topPop=p.popularTop10[0];
   setText('todayPopularTop', topPop ? topPop.name : '-');
   setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
   document.getElementById('todayPopChange').innerHTML = topPop ? rankChangeBadge(topPop.change) : '';
 
-  // 2. 매출 1위 업데이트 (장르/퍼블리셔 병기, 순위 변동 뱃지 분리)
   const topSales=p.salesTop10[0];
   setText('todaySalesTop', topSales ? topSales.name : '-');
   setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
   document.getElementById('todaySalesChange').innerHTML = topSales ? rankChangeBadge(topSales.change) : '';
 
-  // 3. 신규 진입 컨텍스트 보강 (가장 높은 순위 병기)
   setText('todayNewCount', p.newEntries.length.toLocaleString()+'개');
-  if(p.newEntries.length > 0) {
-    setText('todayNewMeta', `최고 진입: ${p.newEntries[0].name} (${p.newEntries[0].rank}위)`);
-  } else {
-    setText('todayNewMeta', 'TOP100 기준');
-  }
+  setText('todayNewMeta', p.newEntries.length > 0 ? `최고 진입: ${p.newEntries[0].name} (${p.newEntries[0].rank}위)` : 'TOP100 기준');
 
-  // 4. 매출 최고 상승 컨텍스트 보강 (현재 순위 병기)
   const topRise=p.salesRising[0];
   setText('todayRisingTop', topRise ? `${topRise.name} (${topRise.change})` : '-');
   setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
 
-  // 5. 주도 장르 카드 추가 (매출순 장르 비중 데이터 활용)
   const topGenreObj = p.salesGenre[0];
   if(topGenreObj) {
     const totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0);
     const ratio = totalCount > 0 ? ((topGenreObj.count / totalCount) * 100).toFixed(0) : 0;
     setText('todayTopGenre', topGenreObj.genre);
     setText('todayTopGenreMeta', `TOP100 중 ${ratio}% (${topGenreObj.count}개)`);
-  } else {
-    setText('todayTopGenre', '-');
-    setText('todayTopGenreMeta', '-');
   }
-
+  
   renderRankList('popularTop10List',p.popularTop10,{showMeta:true});
   renderRankList('salesTop10List',p.salesTop10,{showMeta:true});
   renderRankList('newEntriesList',p.newEntries,{showMeta:true});
   renderRankList('salesRisingList',p.salesRising,{showMeta:false});
   renderRankList('salesFallingList',p.salesFalling,{showMeta:false});
-
   renderGenreBars('popularGenreBars',p.popularGenre);
   renderGenreBars('salesGenreBars',p.salesGenre);
 }
@@ -531,48 +543,35 @@ function populateGameNameOptions(){
   (rawStore.sales?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.sales)));
   (rawStore.popular?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.popular)));
   const dl=document.getElementById('gameNameOptions');
-  if(!dl)return;
-  dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
+  if(dl) dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
 function top10Titles(data){
   if(!data) return [];
   const s = schema(data), latest = latestDate(data);
-  return data.rows.filter(r => r[s.date] === latest)
-    .sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999))
-    .slice(0, 10)
-    .map(r => gameName(r, data));
+  return data.rows.filter(r => r[s.date] === latest).sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999)).slice(0, 10).map(r => gameName(r, data));
 }
 
-let searchPopularChartInst=null, searchSalesChartInst=null;
+let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null;
 
-function drawSearchChart(canvasId,prevInstance,data,titles,colors){
-  if(!data)return prevInstance;
+function drawChartShared(canvasId, prevInst, data, titles, colors, padding=15) {
+  if(!data) return prevInst;
   const ctx=document.getElementById(canvasId).getContext('2d');
   const s=schema(data),dates=getDates(data);
   const datasets=titles.filter(Boolean).map((t,i)=>({
-    label:t,
-    clip: false,
+    label:t, clip:false,
     data:dates.map(d=>{
       const row=data.rows.find(r=>r[s.date]===d&&gameName(r,data)===t);
       return row?rankOf(row,data):null;
     }),
-    borderColor:colors[i%colors.length],
-    backgroundColor:'transparent',
-    borderWidth:2,pointRadius:2,tension:.25,spanGaps:true
+    borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
   }));
-  if(prevInstance)prevInstance.destroy();
+  if(prevInst)prevInst.destroy();
   return new Chart(ctx,{
-    type:'line',
-    data:{labels:dates,datasets},
+    type:'line', data:{labels:dates,datasets},
     options:{
-      layout: { padding: { top: 15 } },
-      responsive:true,maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{labels:{color:'#cbd5e1',font:{size:10}}},
-        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw??'-'}위`}}
-      },
+      layout:{padding:{top:padding}}, responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:'#cbd5e1',font:{size:10}}}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw??'-'}위`}}},
       scales:{
         x:{grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8',maxTicksLimit:12}},
         y:{reverse:true,min:1,suggestedMax:100,grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8'}}
@@ -583,85 +582,159 @@ function drawSearchChart(canvasId,prevInstance,data,titles,colors){
 
 function renderSearchCharts(){
   if(!rawStore.sales&&!rawStore.popular)return;
-  const t1=document.getElementById('searchTitle1').value.trim();
-  const t2=document.getElementById('searchTitle2').value.trim();
+  const t1=document.getElementById('searchTitle1').value.trim(), t2=document.getElementById('searchTitle2').value.trim();
   let titles=[t1,t2].filter(Boolean);
-
-  const showPop=document.getElementById('toggleSearchPopular').checked;
-  const showSales=document.getElementById('toggleSearchSales').checked;
+  const showPop=document.getElementById('toggleSearchPopular').checked, showSales=document.getElementById('toggleSearchSales').checked;
   document.getElementById('searchPopularWrap').classList.toggle('hidden',!showPop);
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
-
   const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
-
-  if(showPop){
-    const popTitles=titles.length ? titles : top10Titles(rawStore.sales);
-    searchPopularChartInst=drawSearchChart('searchPopularChart',searchPopularChartInst,rawStore.popular,popTitles,colors);
-  }
-  if(showSales){
-    const salesTitles=titles.length ? titles : top10Titles(rawStore.sales);
-    searchSalesChartInst=drawSearchChart('searchSalesChart',searchSalesChartInst,rawStore.sales,salesTitles,colors);
-  }
-}
-
-function renderDatabase(view){
-  const data=rawStore[view];
-  if(!data)return;
-
-  const search=document.getElementById('tableSearch');
-  if(search){
-    search.placeholder=view==='newReleases'?'게임명 / 퍼블리셔 검색':'게임명 / 장르 / 퍼블리셔 검색';
-  }
-  const title={sales:'매출 순위 DB',popular:'인기 순위 DB',newReleases:'월간 신작 DB'}[view];
-  const desc={
-    sales:'일자별 Google Play 매출 순위 원본 데이터',
-    popular:'일자별 Google Play 인기 순위 원본 데이터',
-    newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'
-  }[view];
-
-  setText('dbTitle',title);
-  setText('dbDescription',desc);
-  document.getElementById('tableSearch').value='';
-  setupDateSelect();
-  filterCurrentTable();
+  if(showPop) searchPopularChartInst=drawChartShared('searchPopularChart',searchPopularChartInst,rawStore.popular,titles.length?titles:top10Titles(rawStore.sales),colors);
+  if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,titles.length?titles:top10Titles(rawStore.sales),colors);
 }
 
 function setupDateSelect(){
   const data=rawStore[currentView],select=document.getElementById('tableDate');
   if(!data){select.innerHTML='';return;}
   const dates=getDates(data).reverse();
-  select.innerHTML='<option value="">전체 날짜</option>'+
-    dates.map(d=>`<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`).join('');
-  if(dates.length)select.value=dates[0];
-  else select.innerHTML='<option value="">전체</option>';
+  select.innerHTML='<option value="">전체 날짜</option>'+dates.map(d=>`<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`).join('');
+  if(dates.length)select.value=dates[0]; else select.innerHTML='<option value="">전체</option>';
 }
 
 function filterCurrentTable(){
   const data=rawStore[currentView];
   if(!data)return;
-  const s=schema(data);
-  const q=document.getElementById('tableSearch').value.toLowerCase().trim();
-  const date=document.getElementById('tableDate').value;
-
+  const s=schema(data), q=document.getElementById('tableSearch').value.toLowerCase().trim(), date=document.getElementById('tableDate').value;
   let rows=data.rows;
   if(date&&s.date>=0)rows=rows.filter(r=>r[s.date]===date);
   if(q)rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
   if(s.rank>=0)rows=rows.slice().sort((a,b)=>(rankOf(a,data)||999999)-(rankOf(b,data)||999999));
-
+  
   const hidden=data.cols.map(c=>['증감수치','증감','change'].includes(norm(c)));
   const visibleIndexes=data.cols.map((_,i)=>i).filter(i=>!hidden[i]);
 
-  document.getElementById('tableHead').innerHTML='<tr>'+
-    visibleIndexes.map(i=>`<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${escapeHtml(data.cols[i]||'-')}</th>`).join('')+
-    '</tr>';
-
-  document.getElementById('tableBody').innerHTML=rows.length?rows.map(r=>'<tr class="border-b border-slate-900 hover:bg-slate-800/40">'+
-    visibleIndexes.map(i=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('')+
-    '</tr>').join(''):
-    '<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
-
+  document.getElementById('tableHead').innerHTML='<tr>'+visibleIndexes.map(i=>`<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${escapeHtml(data.cols[i]||'-')}</th>`).join('')+'</tr>';
+  document.getElementById('tableBody').innerHTML=rows.length?rows.map(r=>{
+    const gName = gameName(r, data);
+    return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">`+
+    visibleIndexes.map(i=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('')+'</tr>';
+  }).join(''):'<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
   setText('tableRowCount',`${rows.length.toLocaleString()}행`);
   setText('dbDataDate',date?`선택 날짜 · ${date}`:`전체 ${data.rows.length.toLocaleString()}행`);
+}
+
+function renderDatabase(view){
+  const data=rawStore[view];
+  if(!data)return;
+  const search=document.getElementById('tableSearch');
+  if(search) search.placeholder=view==='newReleases'?'게임명 / 퍼블리셔 검색':'게임명 / 장르 / 퍼블리셔 검색';
+  const title={sales:'매출 순위 DB',popular:'인기 순위 DB',newReleases:'월간 신작 DB'}[view];
+  const desc={sales:'일자별 Google Play 매출 순위 원본 데이터',popular:'일자별 Google Play 인기 순위 원본 데이터',newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
+  setText('dbTitle',title); setText('dbDescription',desc);
+  document.getElementById('tableSearch').value='';
+  setupDateSelect(); filterCurrentTable();
+}
+
+// ---- GAME DETAIL LOGIC ---- //
+function getMetricsForGame(data, gameNameTarget, recentDays=30){
+  if(!data) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'' };
+  const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
+  let currentRank='-', change='-', genre='', pub='', validRanks=[], top10Count=0;
+  
+  const latestRow = data.rows.find(r => r[s.date] === latest && gameName(r,data) === gameNameTarget);
+  if(latestRow) {
+    currentRank = rankOf(latestRow, data) || '-';
+    change = s.change >= 0 ? (latestRow[s.change] || '-') : '-';
+    genre = s.genre >= 0 ? (latestRow[s.genre] || '') : '';
+    pub = s.publisher >= 0 ? (latestRow[s.publisher] || '') : '';
+  }
+
+  const targetDates = dates.slice(-recentDays);
+  targetDates.forEach(d => {
+    const row = data.rows.find(r => r[s.date] === d && gameName(r,data) === gameNameTarget);
+    if(row){
+      const rnk = rankOf(row, data);
+      if(rnk){
+        validRanks.push(rnk);
+        if(rnk <= 10) top10Count++;
+        if(!genre && s.genre >= 0) genre = row[s.genre] || '';
+        if(!pub && s.publisher >= 0) pub = row[s.publisher] || '';
+      }
+    }
+  });
+
+  const high = validRanks.length ? Math.min(...validRanks) : '-';
+  const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
+  return { currentRank, change, high, avg, top10: top10Count, validRanks, genre, pub };
+}
+
+function openGameDetail(targetName) {
+  setText('detailTitle', targetName);
+  
+  const salesMetrics = getMetricsForGame(rawStore.sales, targetName);
+  const popMetrics = getMetricsForGame(rawStore.popular, targetName);
+  
+  // Combine Genre/Publisher from whichever has it
+  const finalGenre = salesMetrics.genre || popMetrics.genre || '-';
+  const finalPub = salesMetrics.pub || popMetrics.pub || '-';
+  setText('detailGenrePub', `${finalGenre} · ${finalPub}`);
+
+  // Current Status
+  setText('detailSalesRank', salesMetrics.currentRank + (salesMetrics.currentRank !== '-' ? '위' : ''));
+  document.getElementById('detailSalesChange').innerHTML = rankChangeBadge(salesMetrics.change, true);
+  setText('detailPopRank', popMetrics.currentRank + (popMetrics.currentRank !== '-' ? '위' : ''));
+  document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
+
+  // Play Store Link
+  const linkEl = document.getElementById('detailPlayStoreLink');
+  linkEl.href = `https://play.google.com/store/search?q=${encodeURIComponent(targetName)}&c=apps`;
+
+  // Analytics
+  setText('detailSalesHigh', salesMetrics.high + (salesMetrics.high !== '-' ? '위' : ''));
+  setText('detailSalesAvg', salesMetrics.avg + (salesMetrics.avg !== '-' ? '위' : ''));
+  setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : ''));
+  setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
+
+  // Draw Dual Chart (Recent 30 Days Dates Union)
+  const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-30);
+  
+  const getRankData = (data, d) => {
+    if(!data) return null;
+    const s = schema(data);
+    const row = data.rows.find(r => r[s.date] === d && gameName(r,data) === targetName);
+    return row ? rankOf(row, data) : null;
+  };
+
+  const datasets = [
+    { label: '매출 순위', clip: false, data: allDates.map(d => getRankData(rawStore.sales, d)), borderColor: '#818cf8', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: .25, spanGaps: true },
+    { label: '인기 순위', clip: false, data: allDates.map(d => getRankData(rawStore.popular, d)), borderColor: '#34d399', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4,4], pointRadius: 2, tension: .25, spanGaps: true }
+  ];
+
+  if(detailChartInst) detailChartInst.destroy();
+  detailChartInst = new Chart(document.getElementById('detailChart').getContext('2d'), {
+    type: 'line', data: { labels: allDates, datasets },
+    options: {
+      layout: { padding: { top: 10 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw??'-'}위` } } },
+      scales: { x: { grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } }, y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } }
+    }
+  });
+
+  // UI Animation
+  const overlay = document.getElementById('detailOverlay');
+  const panel = document.getElementById('detailPanel');
+  overlay.classList.remove('hidden');
+  setTimeout(() => {
+    overlay.classList.remove('opacity-0');
+    panel.classList.remove('translate-x-full');
+  }, 10);
+}
+
+function closeGameDetail() {
+  const overlay = document.getElementById('detailOverlay');
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('translate-x-full');
+  overlay.classList.add('opacity-0');
+  setTimeout(() => overlay.classList.add('hidden'), 300);
 }
 
 async function fetchAllData(){
@@ -669,31 +742,19 @@ async function fetchAllData(){
   status.className='text-xs px-3 py-1.5 rounded-full bg-indigo-950 text-indigo-300';
   status.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> 동기화 중';
   btn.disabled=true;
-
   try{
     const [sales,popular,news,snapshot]=await Promise.all([
-      fetchSheetData(SHEETS.sales,1),
-      fetchSheetData(SHEETS.popular,1),
-      fetchSheetData(SHEETS.newReleases,1),
-      fetchSheetData(SHEETS.snapshot,0) 
+      fetchSheetData(SHEETS.sales,1), fetchSheetData(SHEETS.popular,1), fetchSheetData(SHEETS.newReleases,1), fetchSheetData(SHEETS.snapshot,0) 
     ]);
-    rawStore.sales=sales;
-    rawStore.popular=popular;
-    rawStore.newReleases=news;
-    rawStore.snapshot=snapshot;
-
-    renderToday();
-    populateGameNameOptions();
+    rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news; rawStore.snapshot=snapshot;
+    renderToday(); populateGameNameOptions();
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
-
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
     status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
   }catch(err){
-    console.error(err);
     status.className='text-xs px-3 py-1.5 rounded-full bg-rose-950 text-rose-300';
     status.innerHTML='<i class="fa-solid fa-circle-exclamation mr-1"></i> 동기화 실패';
-    alert('데이터를 불러오지 못했습니다.\n\n'+err.message+'\n\nGoogle Sheets가 웹에서 공개되어 있는지 확인하세요.');
   }finally{btn.disabled=false;}
 }
 
