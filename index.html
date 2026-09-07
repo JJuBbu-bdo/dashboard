@@ -505,7 +505,6 @@ function renderToday(){
   if(!snap)return;
   const p=parseSnapshotSheet(snap);
   
-  // 상단 헤더 및 대시보드 타이틀 옆에 날짜 반영
   const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
@@ -608,21 +607,106 @@ function renderSearchCharts(){
   if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,titles.length?titles:top10Titles(rawStore.sales),colors);
 }
 
+// ---- 연도/월 그룹화 Select 생성 함수 (매출/인기 DB용) ----
 function setupDateSelect(){
-  const data=rawStore[currentView],select=document.getElementById('tableDate');
+  const data=rawStore[currentView], select=document.getElementById('tableDate');
   if(!data){select.innerHTML='';return;}
-  const dates=getDates(data).reverse();
-  select.innerHTML='<option value="">전체 날짜</option>'+dates.map(d=>`<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`).join('');
-  if(dates.length)select.value=dates[0]; else select.innerHTML='<option value="">전체</option>';
+  const dates=getDates(data).reverse(); // 최신순 정렬
+  
+  // YYYY-MM 별로 그룹화
+  const grouped={};
+  dates.forEach(d=>{
+    const ym=d.slice(0,7); // "YYYY-MM"
+    if(!grouped[ym]) grouped[ym]=[];
+    grouped[ym].push(d);
+  });
+
+  let html='<option value="">전체 날짜</option>';
+  for(const ym of Object.keys(grouped).sort().reverse()){
+    const [y, m]=ym.split('-');
+    html+=`<optgroup label="${y}년 ${Number(m)}월">`;
+    grouped[ym].forEach(d=>{
+      html+=`<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`;
+    });
+    html+=`</optgroup>`;
+  }
+  select.innerHTML=html;
+
+  // 디폴트값: 최신 투데이(갱신일)
+  if(dates.length) select.value=dates[0];
+}
+
+// ---- 연도/월 그룹화 Select 생성 함수 (신작 정보 DB용 - 월 기준 그룹) ----
+function setupNewReleasesDateSelect(){
+  const data=rawStore.newReleases, select=document.getElementById('tableDate');
+  if(!data){select.innerHTML='';return;}
+  const s=schema(data);
+  if(s.releaseDate<0){select.innerHTML='<option value="">전체</option>';return;}
+
+  // 출시일 데이터에서 YYYY-MM 추출 후 중복 제거 및 최신순 정렬
+  const months=[...new Set(data.rows.map(r=>{
+    const val=String(r[s.releaseDate]||'');
+    const m=val.match(/(\d{4})[^0-9]?(\d{1,2})/);
+    return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}` : '';
+  }).filter(Boolean))].sort().reverse();
+
+  // YYYY별로 다시 그룹화 (optgroup 구성용)
+  const grouped={};
+  months.forEach(ym=>{
+    const y=ym.split('-')[0];
+    if(!grouped[y]) grouped[y]=[];
+    grouped[y].push(ym);
+  });
+
+  let html='<option value="">전체 기간</option>';
+  for(const y of Object.keys(grouped).sort().reverse()){
+    html+=`<optgroup label="${y}년">`;
+    grouped[y].forEach(ym=>{
+      const [yy, mm]=ym.split('-');
+      html+=`<option value="${escapeAttr(ym)}">${Number(mm)}월</option>`;
+    });
+    html+=`</optgroup>`;
+  }
+  select.innerHTML=html;
+
+  // 디폴트값: 투데이(갱신일)의 월 기준 (예: 오늘이 2026-09-07이면 '2026-09')
+  const snap=rawStore.snapshot;
+  let todayYM='';
+  if(snap) {
+    const p=parseSnapshotSheet(snap);
+    if(p.asOfDate) todayYM=p.asOfDate.slice(0,7);
+  }
+  if(!todayYM) todayYM=new Date().toISOString().slice(0,7);
+
+  // 해당 월 옵션이 존재하면 기본 선택, 없으면 최신 월 선택
+  if(months.includes(todayYM)) {
+    select.value = todayYM;
+  } else if(months.length > 0) {
+    select.value = months[0];
+  } else {
+    select.value = '';
+  }
 }
 
 function filterCurrentTable(){
   const data=rawStore[currentView];
   if(!data)return;
-  const s=schema(data), q=document.getElementById('tableSearch').value.toLowerCase().trim(), date=document.getElementById('tableDate').value;
+  const s=schema(data), q=document.getElementById('tableSearch').value.toLowerCase().trim(), dateVal=document.getElementById('tableDate').value;
   let rows=data.rows;
   
-  if(date&&s.date>=0)rows=rows.filter(r=>r[s.date]===date);
+  if(dateVal) {
+    if(currentView === 'newReleases') {
+      // 신작 정보 DB는 YYYY-MM 월 단위 필터링
+      rows=rows.filter(r=>{
+        const val=String(r[s.releaseDate]||'');
+        return val.startsWith(dateVal);
+      });
+    } else {
+      // 매출/인기 DB는 정확한 YYYY-MM-DD 일자 필터링
+      rows=rows.filter(r=>r[s.date]===dateVal);
+    }
+  }
+
   if(q)rows=rows.filter(r=>r.some(c=>String(c??'').toLowerCase().includes(q)));
   
   // 월간 신작 DB - 모바일 필터링 로직
@@ -647,8 +731,9 @@ function filterCurrentTable(){
     return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">`+
     visibleIndexes.map(i=>`<td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(r[i]===''?'-':r[i])}</td>`).join('')+'</tr>';
   }).join(''):'<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
+  
   setText('tableRowCount',`${rows.length.toLocaleString()}행`);
-  setText('dbDataDate',date?`선택 날짜 · ${date}`:`전체 ${data.rows.length.toLocaleString()}행`);
+  setText('dbDataDate',dateVal?`선택 기준 · ${dateVal}`:`전체 ${data.rows.length.toLocaleString()}행`);
 }
 
 function renderDatabase(view){
@@ -674,7 +759,15 @@ function renderDatabase(view){
   }
 
   document.getElementById('tableSearch').value='';
-  setupDateSelect(); filterCurrentTable();
+  
+  // 뷰에 따라 날짜 셀렉트박스 생성 함수 분기 적용
+  if(view === 'newReleases') {
+    setupNewReleasesDateSelect();
+  } else {
+    setupDateSelect();
+  }
+  
+  filterCurrentTable();
 }
 
 function getMetricsForGame(data, gameNameTarget, recentDays=30){
@@ -785,7 +878,7 @@ async function fetchAllData(){
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
-    status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> DB Status';
+    status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
   }catch(err){
     status.className='text-xs px-3 py-1.5 rounded-full bg-rose-950 text-rose-300';
     status.innerHTML='<i class="fa-solid fa-circle-exclamation mr-1"></i> 동기화 실패';
