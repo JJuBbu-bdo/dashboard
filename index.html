@@ -71,26 +71,43 @@ body{background:#080d18}
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div class="card rounded-xl p-4">
-        <div class="text-[11px] muted">인기 1위</div>
-        <div id="todayPopularTop" class="text-lg font-bold mt-2 truncate">-</div>
-        <div id="todayPopularMeta" class="text-[11px] text-emerald-300 mt-1">-</div>
+    <!-- 5열 그리드로 변경하고 아이콘 뱃지 및 메타데이터 추가 -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div class="card rounded-xl p-4 relative overflow-hidden">
+        <i class="fa-solid fa-fire text-emerald-400/10 text-4xl absolute -bottom-2 -right-2"></i>
+        <div class="text-[11px] muted flex justify-between items-center">
+          <span>인기 1위</span>
+          <span id="todayPopChange"></span>
+        </div>
+        <div id="todayPopularTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
+        <div id="todayPopularMeta" class="text-[11px] text-emerald-300 mt-1 truncate relative z-10">-</div>
       </div>
-      <div class="card rounded-xl p-4">
-        <div class="text-[11px] muted">매출 1위</div>
-        <div id="todaySalesTop" class="text-lg font-bold mt-2 truncate">-</div>
-        <div id="todaySalesMeta" class="text-[11px] text-indigo-300 mt-1">-</div>
+      <div class="card rounded-xl p-4 relative overflow-hidden">
+        <i class="fa-solid fa-coins text-indigo-400/10 text-4xl absolute -bottom-2 -right-2"></i>
+        <div class="text-[11px] muted flex justify-between items-center">
+          <span>매출 1위</span>
+          <span id="todaySalesChange"></span>
+        </div>
+        <div id="todaySalesTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
+        <div id="todaySalesMeta" class="text-[11px] text-indigo-300 mt-1 truncate relative z-10">-</div>
       </div>
-      <div class="card rounded-xl p-4">
+      <div class="card rounded-xl p-4 relative overflow-hidden">
+        <i class="fa-solid fa-seedling text-sky-400/10 text-4xl absolute -bottom-2 -right-2"></i>
         <div class="text-[11px] muted">인기순위 신규 진입</div>
-        <div id="todayNewCount" class="text-2xl font-bold mt-2">-</div>
-        <div class="text-[11px] muted mt-1">TOP100 기준</div>
+        <div id="todayNewCount" class="text-2xl font-bold mt-1 relative z-10">-</div>
+        <div id="todayNewMeta" class="text-[11px] text-sky-300 mt-1 truncate relative z-10">-</div>
       </div>
-      <div class="card rounded-xl p-4">
+      <div class="card rounded-xl p-4 relative overflow-hidden">
+        <i class="fa-solid fa-rocket text-rose-400/10 text-4xl absolute -bottom-2 -right-2"></i>
         <div class="text-[11px] muted">매출 최고 상승</div>
-        <div id="todayRisingTop" class="text-sm font-bold mt-2 truncate">-</div>
-        <div class="text-[11px] rank-up mt-1">전일 대비</div>
+        <div id="todayRisingTop" class="text-sm font-bold mt-2 truncate relative z-10">-</div>
+        <div id="todayRisingMeta" class="text-[11px] rank-up mt-1 relative z-10">전일 대비</div>
+      </div>
+      <div class="card rounded-xl p-4 relative overflow-hidden">
+        <i class="fa-solid fa-crown text-amber-400/10 text-4xl absolute -bottom-2 -right-2"></i>
+        <div class="text-[11px] muted">주도 장르 (매출순)</div>
+        <div id="todayTopGenre" class="text-lg font-bold mt-1 truncate relative z-10">-</div>
+        <div id="todayTopGenreMeta" class="text-[11px] text-amber-300 mt-1 relative z-10">-</div>
       </div>
     </div>
   </section>
@@ -213,7 +230,7 @@ body{background:#080d18}
 </main>
 
 <footer class="text-[11px] muted text-center py-5">
-  Google Sheets 기반 대시보드
+  jd
 </footer>
 </div>
 
@@ -274,7 +291,6 @@ function cleanValue(v){
     val = String(v).trim();
   }
 
-  // Date(YYYY,M,D) 원시 문자열을 YYYY-MM-DD로 변환
   if (typeof val === 'string' && val.startsWith('Date(')) {
     const m = val.match(/Date\((\d+),(\d+),(\d+)/);
     if (m) {
@@ -299,7 +315,6 @@ function parseGviz(text){
     return arr;
   });
 
-  // 헤더가 A, B, C 등 기본 아이디로 잡혔다면 첫 행을 헤더로 승격
   if(cols.length > 0 && cols.every(c => /^[A-Z]+$/.test(c)) && rows.length > 0) {
     cols = rows.shift();
   }
@@ -390,7 +405,6 @@ function parseSnapshotSheet(data){
   }
 
   const topRow=findRowIndex(rows,'일간 인기순위');
-  // 오프셋 +3을 +2로 수정하여 1위가 잘리지 않도록 조치함
   const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
   const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
 
@@ -409,10 +423,12 @@ function parseSnapshotSheet(data){
 
 function rankChangeBadge(change){
   const c=String(change||'').trim();
+  if(!c) return `<span class="rank-flat text-[11px] font-semibold whitespace-nowrap">-</span>`;
   if(c.startsWith('▲'))return `<span class="rank-up text-[11px] font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
   if(c.startsWith('▼'))return `<span class="rank-down text-[11px] font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  if(/new/i.test(c))return `<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>`;
-  return `<span class="rank-flat text-[11px]">-</span>`;
+  if(c.includes('유지')||c==='-')return `<span class="rank-flat text-[11px] font-semibold whitespace-nowrap">-</span>`;
+  if(/new/i.test(c))return `<span class="text-indigo-300 text-[11px] font-semibold whitespace-nowrap">NEW</span>`;
+  return `<span class="rank-flat text-[11px]">${escapeHtml(c)}</span>`;
 }
 
 function renderRankList(elId,items,{showMeta=true}={}){
@@ -453,15 +469,42 @@ function renderToday(){
   setText('todayLabel',p.asOfDate?`Today · ${p.asOfDate}`:'Today');
   setText('snapshotDate',p.asOfDate||'');
 
-  const topPop=p.popularTop10[0],topSales=p.salesTop10[0];
-  setText('todayPopularTop',topPop?topPop.name:'-');
-  setText('todayPopularMeta',topPop?`인기 ${topPop.rank}위`:'-');
-  setText('todaySalesTop',topSales?topSales.name:'-');
-  setText('todaySalesMeta',topSales?`매출 ${topSales.rank}위`:'-');
+  // 1. 인기 1위 업데이트 (장르/퍼블리셔 병기, 순위 변동 뱃지 분리)
+  const topPop=p.popularTop10[0];
+  setText('todayPopularTop', topPop ? topPop.name : '-');
+  setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
+  document.getElementById('todayPopChange').innerHTML = topPop ? rankChangeBadge(topPop.change) : '';
 
-  setText('todayNewCount',p.newEntries.length.toLocaleString()+'개');
+  // 2. 매출 1위 업데이트 (장르/퍼블리셔 병기, 순위 변동 뱃지 분리)
+  const topSales=p.salesTop10[0];
+  setText('todaySalesTop', topSales ? topSales.name : '-');
+  setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
+  document.getElementById('todaySalesChange').innerHTML = topSales ? rankChangeBadge(topSales.change) : '';
+
+  // 3. 신규 진입 컨텍스트 보강 (가장 높은 순위 병기)
+  setText('todayNewCount', p.newEntries.length.toLocaleString()+'개');
+  if(p.newEntries.length > 0) {
+    setText('todayNewMeta', `최고 진입: ${p.newEntries[0].name} (${p.newEntries[0].rank}위)`);
+  } else {
+    setText('todayNewMeta', 'TOP100 기준');
+  }
+
+  // 4. 매출 최고 상승 컨텍스트 보강 (현재 순위 병기)
   const topRise=p.salesRising[0];
-  setText('todayRisingTop',topRise?`${topRise.name} (${topRise.change})`:'-');
+  setText('todayRisingTop', topRise ? `${topRise.name} (${topRise.change})` : '-');
+  setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
+
+  // 5. 주도 장르 카드 추가 (매출순 장르 비중 데이터 활용)
+  const topGenreObj = p.salesGenre[0];
+  if(topGenreObj) {
+    const totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0);
+    const ratio = totalCount > 0 ? ((topGenreObj.count / totalCount) * 100).toFixed(0) : 0;
+    setText('todayTopGenre', topGenreObj.genre);
+    setText('todayTopGenreMeta', `TOP100 중 ${ratio}% (${topGenreObj.count}개)`);
+  } else {
+    setText('todayTopGenre', '-');
+    setText('todayTopGenreMeta', '-');
+  }
 
   renderRankList('popularTop10List',p.popularTop10,{showMeta:true});
   renderRankList('salesTop10List',p.salesTop10,{showMeta:true});
@@ -492,7 +535,6 @@ function populateGameNameOptions(){
   dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
-// 매출/인기 상관 없이 넘겨받은 데이터의 가장 최신일자 Top 10 반환
 function top10Titles(data){
   if(!data) return [];
   const s = schema(data), latest = latestDate(data);
@@ -510,7 +552,7 @@ function drawSearchChart(canvasId,prevInstance,data,titles,colors){
   const s=schema(data),dates=getDates(data);
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t,
-    clip: false, // 선과 포인트가 차트 상단 여백에서 잘리지 않도록
+    clip: false,
     data:dates.map(d=>{
       const row=data.rows.find(r=>r[s.date]===d&&gameName(r,data)===t);
       return row?rankOf(row,data):null;
@@ -524,7 +566,7 @@ function drawSearchChart(canvasId,prevInstance,data,titles,colors){
     type:'line',
     data:{labels:dates,datasets},
     options:{
-      layout: { padding: { top: 15 } }, // 차트 상단에 여백 15px 추가하여 1위 잘림 방지
+      layout: { padding: { top: 15 } },
       responsive:true,maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
       plugins:{
@@ -550,16 +592,13 @@ function renderSearchCharts(){
   document.getElementById('searchPopularWrap').classList.toggle('hidden',!showPop);
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
 
-  // Top 10을 커버할 수 있도록 색상 배열을 10개로 넉넉하게 지정
   const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
 
   if(showPop){
-    // 검색어가 없으면 매출 기준 Top 10 노출 (인기 차트에도 매출 Top 10 게임들의 인기 순위를 보여줌)
     const popTitles=titles.length ? titles : top10Titles(rawStore.sales);
     searchPopularChartInst=drawSearchChart('searchPopularChart',searchPopularChartInst,rawStore.popular,popTitles,colors);
   }
   if(showSales){
-    // 검색어가 없으면 매출 기준 Top 10 노출
     const salesTitles=titles.length ? titles : top10Titles(rawStore.sales);
     searchSalesChartInst=drawSearchChart('searchSalesChart',searchSalesChartInst,rawStore.sales,salesTitles,colors);
   }
