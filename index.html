@@ -463,11 +463,14 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
+// 안전한 내부 매칭 키 생성 (에러 방지 래퍼 적용)
 function getGameKey(row, data) {
-  const appId = gameAppId(row, data);
-  if(appId && appId !== '-' && appId.trim() !== '') {
-    return appId.trim();
-  }
+  try {
+    const appId = gameAppId(row, data);
+    if(appId && appId !== '-' && appId.trim() !== '') {
+      return appId.trim();
+    }
+  } catch(e) {}
   return gameName(row, data);
 }
 
@@ -478,7 +481,7 @@ function rankOf(row,data){
 }
 function scoreOf(row,data){
   const s=schema(data);
-  if(s.score < 0) return '-';
+  if(!s || s.score < 0) return '-';
   const val = String(row?.[s.score]??'').trim();
   return (val && val !== '-' && val !== '0') ? val : '-';
 }
@@ -487,6 +490,7 @@ function setText(id,v){const el=document.getElementById(id); if(el)el.textConten
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
+// 원본 DB 데이터를 활용해 대시보드 메인 화면 실시간 요약 구성 (에러 방지 안전 래퍼 포함)
 function buildSnapshotFallback(salesData, popData) {
   if (!salesData || !popData) return null;
   const salesDates = getDates(salesData);
@@ -500,7 +504,8 @@ function buildSnapshotFallback(salesData, popData) {
   
   const parseRankMap = (data, s, targetDate) => {
     const map = new Map();
-    (data.rows || []).forEach(r => {
+    if (!data || !data.rows) return map;
+    data.rows.forEach(r => {
       if (r[s.date] === targetDate) {
         const key = getGameKey(r, data);
         const rank = rankOf(r, data);
@@ -546,7 +551,7 @@ function buildSnapshotFallback(salesData, popData) {
     const s = sSales;
     const hIdx = s.change;
     const changeVal = hIdx >= 0 ? Number(x.r[hIdx]) : null;
-    return { ...x, diff: changeVal !== null && changeVal !== 999 ? changeVal : (pRank ? (pRank - x.rank) : 0), change: getChange(x, prevSalesMap, salesData, sSales) };
+    return { ...x, diff: changeVal !== null && !isNaN(changeVal) && changeVal !== 999 ? changeVal : (pRank ? (pRank - x.rank) : 0), change: getChange(x, prevSalesMap, salesData, sSales) };
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
@@ -592,7 +597,7 @@ function rankChangeBadge(change, large=false){
 
 function getLatestScore(gameTitle) {
   const findIn = (data) => {
-    if(!data) return null;
+    if(!data || !data.rows) return null;
     const s = schema(data), latest = latestDate(data);
     const row = data.rows.find(r => r[s.date] === latest && (gameName(r, data) === gameTitle || gameAppId(r, data) === gameTitle || getGameKey(r, data) === gameTitle));
     return row ? scoreOf(row, data) : null;
@@ -642,7 +647,7 @@ function renderRankList(elId, items, {showMeta=true}={}) {
 
 function renderGenreBars(elId,arr){
   const el=document.getElementById(elId);
-  if(!arr.length){el.innerHTML='<div class="text-xs muted py-2">데이터 없음</div>';return;}
+  if(!arr || !arr.length){el.innerHTML='<div class="text-xs muted py-2">데이터 없음</div>';return;}
   const max=Math.max(...arr.map(a=>a.count),1);
   el.innerHTML=arr.map(a=>`
     <div class="flex items-center gap-2 py-1">
@@ -748,14 +753,14 @@ function switchView(view){
 
 function populateGameNameOptions(){
   const names=new Set();
-  (rawStore.sales?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.sales)));
-  (rawStore.popular?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.popular)));
+  if(rawStore.sales && rawStore.sales.rows) rawStore.sales.rows.forEach(r=>names.add(gameName(r,rawStore.sales)));
+  if(rawStore.popular && rawStore.popular.rows) rawStore.popular.rows.forEach(r=>names.add(gameName(r,rawStore.popular)));
   const dl=document.getElementById('gameNameOptions');
   if(dl) dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
 function topNTitles(data, n=5){
-  if(!data) return [];
+  if(!data || !data.rows) return [];
   const s = schema(data), latest = latestDate(data);
   return data.rows.filter(r => r[s.date] === latest).sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999)).slice(0, n).map(r => gameName(r, data));
 }
@@ -763,7 +768,7 @@ function topNTitles(data, n=5){
 let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null;
 
 function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, duration, padding=15) {
-  if(!data) return prevInst;
+  if(!data || !data.rows) return prevInst;
   const ctx=document.getElementById(canvasId).getContext('2d');
   const s=schema(data);
   
@@ -857,6 +862,7 @@ function updateSearchMonthSelect(year, selectedM='', selectedD='') {
   const months = [...mSet].sort().reverse();
   
   const mSel = document.getElementById('searchMonth');
+  if(!mSel) return;
   mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
   
   const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
@@ -870,6 +876,7 @@ function updateSearchDaySelect(year, month, selectedD='') {
   const filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
   
   const dSel = document.getElementById('searchDay');
+  if(!dSel) return;
   dSel.innerHTML = filteredDays.map(d => {
     const dayNum = d.slice(8, 10);
     return `<option value="${dayNum}">${Number(dayNum)}일</option>`;
@@ -899,23 +906,14 @@ function setupDateSelect(){
   const dates = getDates(data).reverse(); 
 
   const ySet = new Set();
-  const ymMap = {}; 
-  const ymdMap = {}; 
-
   dates.forEach(d => {
     const y = d.slice(0, 4);
-    const m = d.slice(5, 7);
     ySet.add(y);
-    if(!ymMap[y]) ymMap[y] = new Set();
-    ymMap[y].add(m);
-
-    const ym = `${y}-${m}`;
-    if(!ymdMap[ym]) ymdMap[ym] = [];
-    ymdMap[ym].push(d);
   });
 
   const years = [...ySet].sort().reverse();
   const ySel = document.getElementById('filterYear');
+  if(!ySel) return;
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
   const targetY = dates[0] ? dates[0].slice(0, 4) : years[0];
@@ -939,6 +937,7 @@ function updateMonthSelect(year, selectedM='', selectedD=''){
 
   const months = [...mSet].sort().reverse();
   const mSel = document.getElementById('filterMonth');
+  if(!mSel) return;
   mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
 
   const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
@@ -952,6 +951,7 @@ function updateDaySelect(year, month, selectedD=''){
   
   const filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
   const dSel = document.getElementById('filterDay');
+  if(!dSel) return;
   dSel.innerHTML = filteredDays.map(d => `<option value="${d}">${d}</option>`).join('');
 
   const targetD = (selectedD && filteredDays.includes(selectedD)) ? selectedD : filteredDays[0];
@@ -972,7 +972,7 @@ function onMonthChange(){
 
 function setupNewReleasesDateSelect(){
   const data = rawStore.newReleases;
-  if(!data) return;
+  if(!data || !data.rows) return;
   const s = schema(data);
   if(s.releaseDate < 0) return;
 
@@ -983,17 +983,14 @@ function setupNewReleasesDateSelect(){
   }).filter(Boolean))].sort().reverse();
 
   const ySet = new Set();
-  const ymMap = {};
   months.forEach(ym => {
     const y = ym.split('-')[0];
-    const m = ym.split('-')[1];
     ySet.add(y);
-    if(!ymMap[y]) ymMap[y] = [];
-    ymMap[y].push(m);
   });
 
   const years = [...ySet].sort().reverse();
   const ySel = document.getElementById('filterYear');
+  if(!ySel) return;
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
   const todayYM = new Date().toISOString().slice(0, 7);
@@ -1006,6 +1003,7 @@ function setupNewReleasesDateSelect(){
 
 function updateNewReleasesMonthSelect(year, selectedM=''){
   const data = rawStore.newReleases;
+  if(!data || !data.rows) return;
   const s = schema(data);
   const months = [...new Set(data.rows.map(r => {
     const val = String(r[s.releaseDate]||'');
@@ -1014,6 +1012,7 @@ function updateNewReleasesMonthSelect(year, selectedM=''){
   }).filter(Boolean))].sort().reverse();
 
   const mSel = document.getElementById('filterMonth');
+  if(!mSel) return;
   mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
 
   const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
@@ -1028,7 +1027,7 @@ function onNewReleasesYearChange(){
 
 function filterCurrentTable(){
   const data = rawStore[currentView];
-  if(!data) return;
+  if(!data || !data.rows) return;
   const s = schema(data);
   const q = document.getElementById('tableSearch').value.toLowerCase().trim();
   let rows = data.rows;
@@ -1136,7 +1135,7 @@ function renderDatabase(view){
 }
 
 function getMetricsForGame(data, gameNameTarget, recentDays=15){
-  if(!data) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-' };
+  if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-' };
   const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
   let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0;
   
@@ -1207,7 +1206,7 @@ function openGameDetail(targetName) {
 
   const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-15);
   const getRankData = (data, d) => {
-    if(!data) return null;
+    if(!data || !data.rows) return null;
     const s = schema(data);
     const row = data.rows.find(r => r[s.date] === d && (gameName(r,data) === targetName || gameAppId(r,data) === targetName || getGameKey(r, data) === targetName));
     return row ? rankOf(row, data) : null;
