@@ -467,7 +467,6 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
-// 패키지명 우선, 누락시 타이틀명 체크 Fallback 키 생성
 function getGameKey(row, data) {
   const appId = gameAppId(row, data);
   if(appId && appId !== '-' && appId.trim() !== '') {
@@ -516,19 +515,19 @@ function readGenreBlock(rows,startRow,nameCol,countCol,maxRows){
 function findRowIndex(rows,matchText,fromRow=0){for(let r=fromRow;r<rows.length;r++){if((rows[r]||[]).some(cell=>String(cell??'').includes(matchText)))return r;}return -1;}
 function findColIndex(rows,rowIdx,matchText){return (rows[rowIdx]||[]).findIndex(cell=>String(cell??'').includes(matchText));}
 
-// 패키지명 컬럼 추가로 인해 밀려난 인덱스 대응 (A:날짜, B:순위, C:증감, D:앱이름, E:패키지명, F:장르, G:개발사, H:증감수치, I:평점)
+// Daily_스냅샷 시트의 원래 고정 레이아웃 인덱스 복구
 function parseSnapshotSheet(data){
   const rows=data.rows;
   const dateRow=findRowIndex(rows,'기준일');
   let asOfDate='';
   if(dateRow>=0){const c=findColIndex(rows,dateRow,'기준일');asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';}
   const topRow=findRowIndex(rows,'일간 인기순위');
-  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:4,publisher:5,change:6},10):[];
-  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:8,name:9,genre:11,publisher:12,change:13},10):[];
+  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
+  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
   const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
-  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:4,publisher:5},10):[];
-  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:8,name:9,change:10},10):[];
-  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:12,name:13,change:14},10):[];
+  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:3,publisher:4},10):[];
+  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:7,name:8,change:9},10):[];
+  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:10,name:11,change:12},10):[];
   const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
   const popularGenre=popGenreRow>=0?readGenreBlock(rows,popGenreRow+2,1,2,30):[];
   const salesGenreRow=findRowIndex(rows,'장르 비중(매출순)',changeRow+1);
