@@ -629,20 +629,39 @@ function getLatestScore(gameTitle) {
   return (sc && sc !== '-') ? sc : null;
 }
 
-function renderRankList(elId,items,{showMeta=true}={}){
-  const el=document.getElementById(elId);
-  if(!items.length){el.innerHTML='<li class="text-xs muted py-2">데이터 없음</li>';return;}
-  el.innerHTML=items.map(it=>`
-    <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0 hover:bg-slate-800/30 cursor-pointer rounded px-1 transition-colors" onclick="openGameDetail('${escapeAttr(it.name)}')">
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="text-[11px] muted w-6 text-right shrink-0">${escapeHtml(it.rank)}</span>
-        <div class="min-w-0">
-          <div class="text-xs font-medium truncate">${escapeHtml(it.name)}</div>
-          ${showMeta&&(it.genre||it.publisher)?`<div class="text-[10px] muted truncate">${escapeHtml(it.genre||'')}${it.genre&&it.publisher?' · ':''}${escapeHtml(it.publisher||'')}</div>`:''}
+function renderRankList(elId, items, {showMeta=true}={}) {
+  const el = document.getElementById(elId);
+  if (!items || !items.length) {
+    el.innerHTML = '<li class="text-xs muted py-2">데이터 없음</li>';
+    return;
+  }
+
+  el.innerHTML = items.map(it => {
+    // DB에서 해당 게임의 최신 평점 조회
+    const scoreVal = it.score || getLatestScore(it.name);
+    const scoreBadge = (scoreVal && scoreVal !== '-') 
+      ? `<span class="text-amber-400 font-semibold text-[11px] flex items-center shrink-0 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+           <i class="fa-solid fa-star text-[9px] mr-1"></i>${escapeHtml(scoreVal)}
+         </span>` 
+      : '';
+
+    return `
+      <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0 hover:bg-slate-800/30 cursor-pointer rounded px-1.5 transition-colors" onclick="openGameDetail('${escapeAttr(it.name)}')">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <span class="text-[11px] muted w-5 text-right shrink-0">${escapeHtml(it.rank)}</span>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs font-medium truncate">${escapeHtml(it.name)}</div>
+            ${showMeta && (it.genre || it.publisher) ? `<div class="text-[10px] muted truncate">${escapeHtml(it.genre || '')}${it.genre && it.publisher ? ' · ' : ''}${escapeHtml(it.publisher || '')}</div>` : ''}
+          </div>
         </div>
-      </div>
-      ${rankChangeBadge(it.change)}
-    </li>`).join('');
+        <div class="flex items-center gap-2 shrink-0">
+          ${scoreBadge}
+          <div class="w-12 text-right flex justify-end">
+            ${rankChangeBadge(it.change)}
+          </div>
+        </div>
+      </li>`;
+  }).join('');
 }
 
 function renderGenreBars(elId,arr){
