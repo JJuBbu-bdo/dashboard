@@ -465,11 +465,27 @@ function rankOf(row) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+// 오류 방지를 위한 2중 필터 평점 파싱 함수
 function scoreOf(row) {
   if(!row) return '-';
   const isNewSchema = rowDate(row) >= '2026-09-08';
-  const val = isNewSchema ? row[8] : row[7];
-  const str = String(val ?? '').trim();
+  
+  // 1차 시도 (정상 위치)
+  let val = isNewSchema ? row[8] : row[7];
+  let str = String(val ?? '').trim();
+  let num = parseFloat(str);
+
+  // 1차 시도가 평점 범위를 벗어나는 경우 (증감수치를 잘못 읽었을 때 대비)
+  if (!isNaN(num) && (num > 5 || num < 0)) {
+    // 2차 시도 (옆 칸 확인)
+    let fallbackVal = isNewSchema ? row[7] : row[8];
+    let fallbackNum = parseFloat(String(fallbackVal ?? '').trim());
+    if (!isNaN(fallbackNum) && fallbackNum >= 0 && fallbackNum <= 5) {
+      return String(fallbackVal).trim();
+    }
+    return '-'; // 찾지 못하면 빈칸 처리
+  }
+  
   return (str && str !== '-' && str !== '0') ? str : '-';
 }
 
@@ -602,8 +618,7 @@ function getLatestScore(gameTitle) {
     const latest = latestDate(data);
     const row = data.rows.find(r => rowDate(r) === latest && getGameKey(r) === targetKey);
     if(!row) return null;
-    const scoreVal = rowDate(row) >= '2026-09-08' ? row[8] : row[7];
-    return String(scoreVal || '').trim();
+    return scoreOf(row);
   };
   const sc = findIn(rawStore.sales) || findIn(rawStore.popular);
   return (sc && sc !== '-' && sc !== '0') ? sc : null;
@@ -762,10 +777,22 @@ function populateGameNameOptions(){
   if(dl) dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
-function topNTitles(data, n=5){
-  if(!data || !data.rows) return [];
+// 에러 없는 완벽한 Top 3 게임명 추출 함수
+function getTopTitlesSafe(data, n=3) {
+  if (!data || !data.rows) return ['데이터 없음'];
   const latest = latestDate(data);
-  return data.rows.filter(r => rowDate(r) === latest).sort((a, b) => (rankOf(r) || 999999) - (rankOf(b) || 999999)).slice(0, n).map(r => gameName(r));
+  const filtered = data.rows.filter(r => rowDate(r) === latest);
+  filtered.sort((a, b) => (rankOf(a) || 9999) - (rankOf(b) || 9999));
+  
+  const names = [];
+  for (let r of filtered) {
+    const gn = gameName(r);
+    if (gn && gn !== '-' && !names.includes(gn)) {
+      names.push(gn);
+    }
+  }
+  const top = names.slice(0, n);
+  return top.length > 0 ? top : ['데이터 없음'];
 }
 
 let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null, detailScoreChartInst=null;
@@ -828,8 +855,9 @@ function renderSearchCharts(){
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
   const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
   
-  const popTargetTitles = titles.length ? titles : (topNTitles(rawStore.popular, 3).length ? topNTitles(rawStore.popular, 3) : ['데이터 없음']);
-  const salesTargetTitles = titles.length ? titles : (topNTitles(rawStore.sales, 3).length ? topNTitles(rawStore.sales, 3) : ['데이터 없음']);
+  // 개별 차트 디폴트 안전 처리 (무조건 상위 3종 추출)
+  const popTargetTitles = titles.length > 0 ? titles : getTopTitlesSafe(rawStore.popular, 3);
+  const salesTargetTitles = titles.length > 0 ? titles : getTopTitlesSafe(rawStore.sales, 3);
 
   if(showPop) searchPopularChartInst=drawChartShared('searchPopularChart',searchPopularChartInst,rawStore.popular,popTargetTitles,colors, baseDate, duration);
   if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,salesTargetTitles,colors, baseDate, duration);
@@ -976,7 +1004,7 @@ function onMonthChange(){
 function setupNewReleasesDateSelect(){
   const data = rawStore.newReleases;
   if(!data || !data.rows) return;
-  
+
   const months = [...new Set(data.rows.map(r => {
     const val = String(r[0]||'');
     const m = val.match(/(\d{4})[^0-9]?(\d{1,2})/);
@@ -1065,7 +1093,6 @@ function filterCurrentTable(){
     rows = rows.slice().sort((a,b) => (rankOf(a)||999999) - (rankOf(b)||999999));
   }
   
-  // 매출/인기 탭인 경우 강제 열 배치 지정: 날짜, 순위, 증감, 평점, 앱이름, 장르, 개발사
   if (currentView === 'sales' || currentView === 'popular') {
     const headers = ['날짜', '순위', '증감', '평점', '앱이름', '장르', '개발사(퍼블리셔)'];
     document.getElementById('tableHead').innerHTML = '<tr>' + headers.map(h => `<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${h}</th>`).join('') + '</tr>';
@@ -1093,7 +1120,6 @@ function filterCurrentTable(){
       </tr>`;
     }).join('') : '<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
   } else {
-    // 신작 정보 DB는 무조건 0~4번 인덱스에 맞춰 깔끔하게 출력
     const headers = ['출시일', '게임명', '플랫폼', '퍼블리셔', '출시유형'];
     document.getElementById('tableHead').innerHTML = '<tr>' + headers.map(h => `<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${h}</th>`).join('') + '</tr>';
     
@@ -1252,12 +1278,13 @@ function openGameDetail(targetName) {
     return row ? rankOf(row) : null;
   };
 
+  // 강력한 안전 평점 추출
   const getScoreData = (data, d) => {
     if(!data || !data.rows) return null;
     const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
     if(!row) return null;
-    const val = Number(scoreOf(row));
-    return (!isNaN(val) && val > 0) ? val : null;
+    const val = parseFloat(scoreOf(row));
+    return (!isNaN(val) && val >= 0 && val <= 5) ? val : null;
   };
 
   const rankDatasets = [
