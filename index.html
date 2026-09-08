@@ -358,11 +358,10 @@ const SPREADSHEET_ID = '1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw';
 const SHEETS = {
   sales:'DB_매출순위',
   popular:'DB_인기순위',
-  newReleases:'월간신작DB',
-  snapshot:'Daily_스냅샷'
+  newReleases:'월간신작DB'
 };
 
-const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
+const rawStore = {sales:null,popular:null,newReleases:null};
 let currentView='dashboard';
 let todayGenreDonutInst = null; 
 
@@ -491,20 +490,7 @@ function setText(id,v){const el=document.getElementById(id); if(el)el.textConten
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-// 'Daily_스냅샷' 시트를 직접 파싱하여 대시보드 메인 화면 구성
-function parseSnapshotSheet(snapshotData, salesData, popData) {
-  if (!snapshotData || !snapshotData.rows) {
-    return buildSnapshotFallback(salesData, popData);
-  }
-  
-  // 스냅샷 시트 구조에 맞춘 파싱 및 폴백 연동
-  const rows = snapshotData.rows;
-  const latest = latestDate(salesData) || new Date().toISOString().slice(0, 10);
-  
-  // 원본 DB 데이터를 활용해 정밀 집계 데이터 생성
-  return buildSnapshotFallback(salesData, popData);
-}
-
+// 원본 DB 데이터를 활용해 대시보드 메인 화면 실시간 요약 구성 (패키지명/평점 구조 완벽 대응)
 function buildSnapshotFallback(salesData, popData) {
   if (!salesData || !popData || !salesData.rows || !popData.rows) return null;
   const salesDates = getDates(salesData);
@@ -674,7 +660,7 @@ function renderGenreBars(elId,arr){
 }
 
 function renderToday(){
-  const p = parseSnapshotSheet(rawStore.snapshot, rawStore.sales, rawStore.popular);
+  const p = buildSnapshotFallback(rawStore.sales, rawStore.popular);
   if(!p) return;
   
   const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
@@ -1277,13 +1263,10 @@ async function fetchAllData(){
   status.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> 동기화 중';
   btn.disabled=true;
   try{
-    const [sales,popular,news,snapshot]=await Promise.all([
-      fetchSheetData(SHEETS.sales,1), 
-      fetchSheetData(SHEETS.popular,1), 
-      fetchSheetData(SHEETS.newReleases,1),
-      fetchSheetData(SHEETS.snapshot,1).catch(() => null)
+    const [sales,popular,news]=await Promise.all([
+      fetchSheetData(SHEETS.sales,1), fetchSheetData(SHEETS.popular,1), fetchSheetData(SHEETS.newReleases,1)
     ]);
-    rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news; rawStore.snapshot=snapshot;
+    rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news;
     
     renderToday(); 
     populateGameNameOptions();
