@@ -470,14 +470,12 @@ function scoreOf(row) {
   if(!row) return '-';
   const rDate = rowDate(row);
   
-  // 9월 8일 이전 데이터는 평점 컬럼이 존재하지 않으므로 무조건 빈칸 처리
   if (rDate < '2026-09-08') return '-';
   
   let val = row[8];
   let str = String(val ?? '').trim();
   let num = parseFloat(str);
 
-  // 8번 열에서 읽은 값이 정상이 아닐 경우 (혹시 모를 위치 밀림 대비 2차 검증)
   if (!isNaN(num) && (num > 5 || num < 0)) {
     let fallbackVal = row[7];
     let fallbackNum = parseFloat(String(fallbackVal ?? '').trim());
@@ -773,12 +771,11 @@ function switchView(view){
 function populateGameNameOptions(){
   const names=new Set();
   if(rawStore.sales && rawStore.sales.rows) rawStore.sales.rows.forEach(r=>{const n=gameName(r); if(n&&n!=='-')names.add(n);});
-  if(rawStore.popular && rawStore.popular.rows) rawStore.popular.rows.forEach(r=>{const n=gameName(r); if(n&&n!=='-')namesadd(n);});
+  if(rawStore.popular && rawStore.popular.rows) rawStore.popular.rows.forEach(r=>{const n=gameName(r); if(n&&n!=='-')names.add(n);});
   const dl=document.getElementById('gameNameOptions');
   if(dl) dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
-// 에러 없는 완벽한 Top 3 게임명 추출 (안전장치 추가)
 function getTopTitlesSafe(data, n=3) {
   if (!data || !data.rows) return ['데이터 없음'];
   const latest = latestDate(data);
@@ -856,7 +853,6 @@ function renderSearchCharts(){
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
   const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
   
-  // 각 차트의 성격에 맞춰 상위 3개를 개별적으로 분리 추출 (안전 함수 사용)
   const popTargetTitles = titles.length > 0 ? titles : getTopTitlesSafe(rawStore.popular, 3);
   const salesTargetTitles = titles.length > 0 ? titles : getTopTitlesSafe(rawStore.sales, 3);
 
@@ -1279,14 +1275,10 @@ function openGameDetail(targetName) {
     return row ? rankOf(row) : null;
   };
 
-  // 강력히 차단된 안전 데이터 호출 함수
   const getScoreData = (data, d) => {
     if(!data || !data.rows) return null;
-    if(d < '2026-09-08') return null; // 9/8 이전 데이터는 무조건 렌더링 배제
-    
     const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
     if(!row) return null;
-    
     const val = parseFloat(scoreOf(row));
     return (!isNaN(val) && val >= 0 && val <= 5) ? val : null;
   };
