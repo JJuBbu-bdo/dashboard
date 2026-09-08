@@ -373,6 +373,7 @@ const aliases={
   date:['날짜','일자','date','수집일','기준일'],
   rank:['순위','rank','랭킹','순위값'],
   name:['앱이름','게임명','게임이름','앱 이름','앱명','title','name','타이틀'],
+  appId:['패키지명', 'appid', 'package'],
   genre:['장르','genre','카테고리','category'],
   publisher:['개발사(퍼블리셔)','퍼블리셔','개발사','회사','publisher','developer'],
   platform:['플랫폼','platform'],
@@ -397,6 +398,7 @@ function schema(data){
     date:findCol(c,'date'),
     rank:findCol(c,'rank'),
     name:findCol(c,'name'),
+    appId:findCol(c,'appId'),
     genre:findCol(c,'genre'),
     publisher:findCol(c,'publisher'),
     platform:findCol(c,'platform'),
@@ -463,6 +465,17 @@ function getDates(data){
 }
 function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
+function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
+
+// 패키지명 우선 체크, 누락(또는 빈값 '-')인 경우 타이틀명(앱이름)으로 대체 매칭하는 헬퍼 함수
+function getGameKey(row, data) {
+  const appId = gameAppId(row, data);
+  if(appId && appId !== '-' && appId.trim() !== '') {
+    return appId.trim();
+  }
+  return gameName(row, data);
+}
+
 function rankOf(row,data){
   const s=schema(data);
   const n=Number(String(row?.[s.rank]??'').replace(/[^0-9.-]/g,''));
@@ -537,9 +550,9 @@ function buildSnapshotFallback(salesData, popData) {
     const map = new Map();
     (data.rows || []).forEach(r => {
       if (r[s.date] === targetDate) {
-        const name = gameName(r, data);
+        const key = getGameKey(r, data);
         const rank = rankOf(r, data);
-        if(name && rank) map.set(name, { rank, r });
+        if(key && rank) map.set(key, { rank, r });
       }
     });
     return map;
@@ -561,22 +574,24 @@ function buildSnapshotFallback(salesData, popData) {
   const popList = toList(latestPopMap, sPop, popData);
   const salesList = toList(latestSalesMap, sSales, salesData);
   
-  const getChange = (name, rank, prevMap) => {
+  const getChange = (rItem, prevMap) => {
+    const key = getGameKey(rItem.r, salesData); // 패키지명 우선, 없으면 타이틀명
     if (!prev) return 'NEW'; 
-    if (!prevMap.has(name)) return 'NEW';
-    const prevRank = prevMap.get(name).rank;
-    if (prevRank === rank) return '-';
-    return prevRank > rank ? `▲ ${prevRank - rank}` : `▼ ${rank - prevRank}`;
+    if (!prevMap.has(key)) return 'NEW';
+    const prevRank = prevMap.get(key).rank;
+    if (prevRank === rItem.rank) return '-';
+    return prevRank > rItem.rank ? `▲ ${prevRank - rItem.rank}` : `▼ ${rItem.rank - prevRank}`;
   };
   
-  const popularTop10 = popList.slice(0, 10).map(x => ({...x, change: getChange(x.name, x.rank, prevPopMap)}));
-  const salesTop10 = salesList.slice(0, 10).map(x => ({...x, change: getChange(x.name, x.rank, prevSalesMap)}));
+  const popularTop10 = popList.slice(0, 10).map(x => ({...x, change: getChange(x, prevPopMap)}));
+  const salesTop10 = salesList.slice(0, 10).map(x => ({...x, change: getChange(x, prevSalesMap)}));
   
-  const newEntries = popList.filter(x => prev && !prevPopMap.has(x.name)).slice(0, 10).map(x => ({...x, change: 'NEW'}));
+  const newEntries = popList.filter(x => prev && !prevPopMap.has(getGameKey(x.r, popData))).slice(0, 10).map(x => ({...x, change: 'NEW'}));
   
   const salesChanges = salesList.map(x => {
-    const pRank = prevSalesMap.has(x.name) ? prevSalesMap.get(x.name).rank : null;
-    return { ...x, diff: pRank ? (pRank - x.rank) : 0, change: getChange(x.name, x.rank, prevSalesMap) };
+    const key = getGameKey(x.r, salesData);
+    const pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
+    return { ...x, diff: pRank ? (pRank - x.rank) : 0, change: getChange(x, prevSalesMap) };
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
@@ -624,7 +639,7 @@ function getLatestScore(gameTitle) {
   const findIn = (data) => {
     if(!data) return null;
     const s = schema(data), latest = latestDate(data);
-    const row = data.rows.find(r => r[s.date] === latest && gameName(r, data) === gameTitle);
+    const row = data.rows.find(r => r[s.date] === latest && (gameName(r, data) === gameTitle || gameAppId(r, data) === gameTitle));
     return row ? scoreOf(row, data) : null;
   };
   const sc = findIn(rawStore.sales) || findIn(rawStore.popular);
@@ -811,7 +826,7 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t, clip:false,
     data:dates.map(d=>{
-      const row=data.rows.find(r=>r[s.date]===d&&gameName(r,data)===t);
+      const row=data.rows.find(r=>r[s.date]===d&&(gameName(r,data)===t || gameAppId(r,data)===t));
       return row?rankOf(row,data):null;
     }),
     borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
@@ -1179,7 +1194,8 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
   let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0;
   
-  const latestRow = data.rows.find(r => r[s.date] === latest && gameName(r,data) === gameNameTarget);
+  const matchFn = r => r[s.date] === latest && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget);
+  const latestRow = data.rows.find(matchFn);
   if(latestRow) {
     currentRank = rankOf(latestRow, data) || '-';
     change = s.change >= 0 ? (latestRow[s.change] || '-') : '-';
@@ -1190,7 +1206,7 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
 
   const targetDates = dates.slice(-recentDays);
   targetDates.forEach(d => {
-    const row = data.rows.find(r => r[s.date] === d && gameName(r,data) === gameNameTarget);
+    const row = data.rows.find(r => r[s.date] === d && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget));
     if(row){
       const rnk = rankOf(row, data);
       if(rnk){
@@ -1207,7 +1223,7 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
   
   if (dates.length > 1 && validRanks.length > 0) {
-    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => r[s.date] === d && gameName(r,data) === gameNameTarget && rankOf(r, data)));
+    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => r[s.date] === d && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget) && rankOf(r, data)));
     if (firstValidDateIndex === dates.length - 1) {
       change = 'NEW';
     }
@@ -1247,7 +1263,7 @@ function openGameDetail(targetName) {
   const getRankData = (data, d) => {
     if(!data) return null;
     const s = schema(data);
-    const row = data.rows.find(r => r[s.date] === d && gameName(r,data) === targetName);
+    const row = data.rows.find(r => r[s.date] === d && (gameName(r,data) === targetName || gameAppId(r,data) === targetName));
     return row ? rankOf(row, data) : null;
   };
 
