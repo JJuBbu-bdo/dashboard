@@ -413,7 +413,8 @@ function cleanValue(v){
   } else {
     val = String(v).trim();
   }
-  if (typeof val === 'string' && val.startsWith('Date(')) {
+  val = String(val).trim();
+  if (val.startsWith('Date(')) {
     const m = val.match(/Date\((\d+),(\d+),(\d+)/);
     if (m) {
       const yy = m[1];
@@ -454,19 +455,19 @@ function dateValue(v){
   return m?new Date(+m[1],+m[2]-1,+m[3]).getTime():Date.parse(s)||0;
 }
 
-function getDates(data){
-  if(!data || !data.rows) return [];
-  const s=schema(data);
-  const dateIdx = s.date >= 0 ? s.date : 0;
-  return [...new Set(data.rows.map(r=>r[dateIdx]).filter(Boolean))].sort((a,b)=>dateValue(a)-dateValue(b));
-}
-function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
-
+// 1. 날짜 강제 규격화 (공백/시간 잘라내고 무조건 YYYY-MM-DD 맞춤)
 function rowDate(row, data) {
   if(!row) return '';
   const s = schema(data);
-  return String(row[s.date >= 0 ? s.date : 0] || '');
+  const val = String(row[s.date >= 0 ? s.date : 0] || '').trim();
+  return val.length >= 10 ? val.substring(0, 10) : val;
 }
+
+function getDates(data){
+  if(!data || !data.rows) return [];
+  return [...new Set(data.rows.map(r=>rowDate(r, data)).filter(Boolean))].sort((a,b)=>dateValue(a)-dateValue(b));
+}
+function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 
 function gameName(row, data) {
   if(!row) return '-';
@@ -476,30 +477,22 @@ function gameName(row, data) {
   return String(row[0] || '-');
 }
 
-function gameAppId(row, data) {
-  if(!row) return '';
-  const s = schema(data);
-  if(s.appId >= 0 && row[s.appId] !== undefined) return String(row[s.appId]);
-  if(row[4] !== undefined) return String(row[4]);
-  return '';
-}
-
-// 9/7(패키지명 없음)과 9/8(패키지명 있음) 간의 키 매칭을 완벽히 일치시키기 위해 게임명(gameName)을 최우선 공통 키로 사용
+// 2. 띄어쓰기/대소문자 무시 고유키 (어제/오늘 100% 매칭)
 function getGameKey(row, data) {
   const name = gameName(row, data);
-  if(name && name !== '-' && name.trim() !== '') return name.trim();
-  try {
-    const appId = gameAppId(row, data);
-    if(appId && appId !== '-' && appId.trim() !== '') return appId.trim();
-  } catch(e) {}
+  if(name && name !== '-' && name.trim() !== '') {
+    return name.toLowerCase().replace(/\s+/g, '');
+  }
   return '-';
 }
 
 function rankOf(row, data) {
   if(!row) return null;
   const s = schema(data);
-  const val = (s.rank >= 0 && row[s.rank] !== undefined) ? row[s.rank] : row[1];
-  const n = Number(String(val ?? '').replace(/[^0-9.-]/g,''));
+  const val = (s.rank >= 0 && row[s.rank] !== undefined && row[s.rank] !== '') ? row[s.rank] : row[1];
+  const str = String(val ?? '').replace(/[^0-9.-]/g,'');
+  if(!str) return null;
+  const n = Number(str);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
@@ -578,11 +571,15 @@ function buildSnapshotFallback(salesData, popData) {
   
   const newEntries = popList.filter(x => prev && !prevPopMap.has(getGameKey(x.r, popData))).slice(0, 10).map(x => ({...x, change: 'NEW'}));
   
+  // 3. 증감수치 시트 오류 대비 자체 계산 안전장치
   const salesChanges = salesList.map(x => {
     const key = getGameKey(x.r, salesData);
     const pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
-    const changeVal = changeValueOf(x.r, salesData);
-    return { ...x, diff: changeVal !== 999 && changeVal !== 0 ? changeVal : (pRank ? (pRank - x.rank) : 0), change: getChange(x, prevSalesMap, salesData) };
+    let diff = 0;
+    if (pRank) {
+      diff = pRank - x.rank; // 어제 순위 - 오늘 순위 강제 계산 (완벽 보장)
+    }
+    return { ...x, diff, change: getChange(x, prevSalesMap, salesData) };
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
@@ -630,7 +627,7 @@ function getLatestScore(gameTitle) {
   const findIn = (data) => {
     if(!data || !data.rows) return null;
     const latest = latestDate(data);
-    const row = data.rows.find(r => rowDate(r, data) === latest && (gameName(r, data) === gameTitle || gameAppId(r, data) === gameTitle || getGameKey(r, data) === gameTitle));
+    const row = data.rows.find(r => rowDate(r, data) === latest && (gameName(r, data) === gameTitle || getGameKey(r, data) === gameTitle.toLowerCase().replace(/\s+/g, '')));
     return row ? scoreOf(row, data) : null;
   };
   const sc = findIn(rawStore.sales) || findIn(rawStore.popular);
@@ -809,7 +806,7 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t, clip:false,
     data:dates.map(d=>{
-      const row=data.rows.find(r=>rowDate(r,data)===d && (gameName(r,data)===t || gameAppId(r,data)===t || getGameKey(r,data)===t));
+      const row=data.rows.find(r=>rowDate(r,data)===d && (getGameKey(r,data)===t.toLowerCase().replace(/\s+/g, '') || gameName(r,data)===t));
       return row?rankOf(row,data):null;
     }),
     borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
@@ -1172,7 +1169,9 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
   let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0;
   
-  const matchFn = r => rowDate(r, data) === latest && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget);
+  const targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
+  const matchFn = r => rowDate(r, data) === latest && getGameKey(r, data) === targetKey;
+  
   const latestRow = data.rows.find(matchFn);
   if(latestRow) {
     currentRank = rankOf(latestRow, data) || '-';
@@ -1185,7 +1184,7 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
 
   const targetDates = dates.slice(-recentDays);
   targetDates.forEach(d => {
-    const row = data.rows.find(r => rowDate(r, data) === d && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget));
+    const row = data.rows.find(r => rowDate(r, data) === d && getGameKey(r, data) === targetKey);
     if(row){
       const rnk = rankOf(row, data);
       if(rnk){
@@ -1202,7 +1201,7 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
   
   if (dates.length > 1 && validRanks.length > 0) {
-    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => rowDate(r, data) === d && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget) && rankOf(r, data)));
+    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => rowDate(r, data) === d && getGameKey(r, data) === targetKey && rankOf(r, data)));
     if (firstValidDateIndex === dates.length - 1) {
       change = 'NEW';
     }
@@ -1239,9 +1238,11 @@ function openGameDetail(targetName) {
   setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
 
   const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-15);
+  const targetKey = targetName.toLowerCase().replace(/\s+/g, '');
+  
   const getRankData = (data, d) => {
     if(!data || !data.rows) return null;
-    const row = data.rows.find(r => rowDate(r, data) === d && (gameName(r,data) === targetName || gameAppId(r,data) === targetName || getGameKey(r, data) === targetName));
+    const row = data.rows.find(r => rowDate(r, data) === d && getGameKey(r, data) === targetKey);
     return row ? rankOf(row, data) : null;
   };
 
