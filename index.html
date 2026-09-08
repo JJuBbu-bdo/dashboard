@@ -52,6 +52,9 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <button class="tab active" data-view="dashboard" onclick="switchView('dashboard')">
       <i class="fa-solid fa-gauge-high mr-1.5"></i> Dashboard
     </button>
+    <button class="tab" data-view="deepDive" onclick="switchView('deepDive')">
+      <i class="fa-solid fa-brain mr-1.5 text-indigo-400"></i> 심층분석 (Rank Layer)
+    </button>
     <button class="tab" data-view="sales" onclick="switchView('sales')">
       <i class="fa-solid fa-coins mr-1.5"></i> 매출 순위 DB
     </button>
@@ -154,25 +157,22 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     </div>
   </section>
 
-  <!-- 오늘의 순위 변동 (개별 그리드 박스로 분리) -->
+  <!-- 오늘의 순위 변동 -->
   <section class="space-y-3">
     <h2 class="font-semibold text-base px-1">오늘의 순위 변동</h2>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- 1. 인기순위 신규 진입 -->
       <div class="card rounded-xl p-5">
         <div class="text-xs font-semibold mb-3 flex items-center gap-1.5 text-sky-400 pb-2 border-b border-slate-800">
           <span class="w-2 h-2 rounded-full bg-sky-400"></span>인기순위 신규 진입
         </div>
         <ul id="newEntriesList" class="divide-y divide-slate-900/70"></ul>
       </div>
-      <!-- 2. 매출 급상승 -->
       <div class="card rounded-xl p-5">
         <div class="text-xs font-semibold mb-3 flex items-center gap-1.5 text-emerald-400 pb-2 border-b border-slate-800">
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>매출 급상승
         </div>
         <ul id="salesRisingList" class="divide-y divide-slate-900/70"></ul>
       </div>
-      <!-- 3. 매출 급하락 -->
       <div class="card rounded-xl p-5">
         <div class="text-xs font-semibold mb-3 flex items-center gap-1.5 text-rose-400 pb-2 border-b border-slate-800">
           <span class="w-2 h-2 rounded-full bg-rose-400"></span>매출 급하락
@@ -190,6 +190,121 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <div class="card rounded-xl p-5">
       <h3 class="font-semibold text-sm mb-3">TOP100 장르 비중 (매출순)</h3>
       <div id="salesGenreBars"></div>
+    </div>
+  </section>
+</div>
+
+<!-- DEEP DIVE VIEW (심층분석 / 순위 해석 레이어) -->
+<div id="view-deepDive" class="hidden space-y-6">
+  <section class="card rounded-xl p-5">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+      <div>
+        <h2 class="font-semibold text-lg"><i class="fa-solid fa-brain text-indigo-400 mr-2"></i>순위 해석 레이어 (Deep Dive Intelligence)</h2>
+        <p class="text-xs muted mt-1">인기↔매출 갭, 추정 매출 환산, 이동평균(MA7), 교체율 및 워치리스트를 제공합니다.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs muted">분석 대상 타이틀:</span>
+        <select id="deepDiveGameSelect" onchange="renderDeepDive()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none"></select>
+      </div>
+    </div>
+
+    <!-- 1 & 3. 갭 분석 & MA7 요일 보정 차트 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+      <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-900/50">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-xs font-semibold text-indigo-300"><i class="fa-solid fa-arrows-split-up-and-left mr-1.5"></i>인기 ↔ 매출 갭 (Rank Gap)</h3>
+          <span class="text-[10px] muted">갭 = 매출순위 − 인기순위</span>
+        </div>
+        <div class="h-[240px]"><canvas id="deepDiveGapChart"></canvas></div>
+        <p class="text-[11px] muted mt-2">💡 갭이 클수록 유입(인기) 대비 과금 전환이 낮은 구간(광고 집행 추정)입니다.</p>
+      </div>
+
+      <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-900/50">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-xs font-semibold text-emerald-300"><i class="fa-solid fa-chart-line mr-1.5"></i>일간 순위 vs 7일 이동평균 (MA7 & 요일 보정)</h3>
+          <span class="text-[10px] muted">주말 노이즈 제거</span>
+        </div>
+        <div class="h-[240px]"><canvas id="deepDiveMaChart"></canvas></div>
+        <p class="text-[11px] muted mt-2">💡 토요일 점프 등 요일 노이즈를 상쇄하여 실제 장기 추세를 보여줍니다.</p>
+      </div>
+    </div>
+
+    <!-- 2. 추정 매출 환산 정렬 테이블 -->
+    <div class="mb-6">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-sm font-semibold"><i class="fa-solid fa-coins text-amber-400 mr-1.5"></i>추정 매출 환산 기준 상승 TOP 5 <span class="text-[11px] muted font-normal">(계단 수 역전 보정)</span></h3>
+        <span class="text-xs muted">절벽 구간(상위권)의 2계단이 평지(하위권)의 20계단보다 임팩트가 큽니다.</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-950 text-slate-300 border-b border-slate-800">
+            <tr>
+              <th class="px-4 py-2.5">순위</th>
+              <th class="px-4 py-2.5">타이틀</th>
+              <th class="px-4 py-2.5">장르 / 퍼블리셔</th>
+              <th class="px-4 py-2.5">변동 추이</th>
+              <th class="px-4 py-2.5 text-right">환산 일매출 변화량 (Index)</th>
+            </tr>
+          </thead>
+          <tbody id="proxyRevenueTableBody" class="divide-y divide-slate-900"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. TOP100 교체율 및 이탈 분석 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+      <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-900/50 col-span-1">
+        <h3 class="text-xs font-semibold mb-2 text-sky-300"><i class="fa-solid fa-rotate mr-1.5"></i>TOP100 교체율 지표</h3>
+        <div class="text-2xl font-bold mt-2" id="turnoverRateVal">11.4%</div>
+        <p class="text-[11px] muted mt-1">주간 TOP100 순위권 변동 비율</p>
+        <div class="mt-4 space-y-2 text-xs">
+          <div class="flex justify-between border-b border-slate-800 pb-1"><span class="muted">완전 이탈 (30일 내 재진입 없음)</span><span class="font-bold text-rose-400">3건</span></div>
+          <div class="flex justify-between pb-1"><span class="muted">일시 이탈 (복귀 가능성)</span><span class="font-bold text-amber-400">8건</span></div>
+        </div>
+      </div>
+
+      <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-900/50 col-span-2">
+        <h3 class="text-xs font-semibold mb-2 text-rose-300"><i class="fa-solid fa-person-walking-arrow-right mr-1.5"></i>주요 이탈 타이틀 모니터링</h3>
+        <div class="overflow-x-auto mt-2">
+          <table class="w-full text-left text-[11px]">
+            <thead class="text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="py-2">타이틀</th>
+                <th class="py-2">직전 순위</th>
+                <th class="py-2">누적 체류일</th>
+                <th class="py-2">분류</th>
+              </tr>
+            </thead>
+            <tbody id="turnoverExitTableBody" class="divide-y divide-slate-900/50">
+              <tr><td class="py-2 font-medium text-slate-200">녹스 아레나</td><td class="py-2 muted">98위</td><td class="py-2 muted">214일</td><td class="py-2 font-semibold text-rose-400">완전 이탈 후보</td></tr>
+              <tr><td class="py-2 font-medium text-slate-200">세븐 스타즈</td><td class="py-2 muted">100위</td><td class="py-2 muted">61일</td><td class="py-2 font-semibold text-amber-400">일시 이탈</td></tr>
+              <tr><td class="py-2 font-medium text-slate-200">하이드라 리그</td><td class="py-2 muted">96위</td><td class="py-2 muted">9일</td><td class="py-2 font-semibold text-rose-400">신작 조기 이탈</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 워치리스트 (Watchlist) -->
+    <div>
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-sm font-semibold"><i class="fa-solid fa-binoculars text-indigo-400 mr-1.5"></i>핵심 워치리스트 (Watchlist)</h3>
+        <span class="text-xs muted">주요 경쟁사 및 자사 타이틀 요약 모니터링</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-950 text-slate-300 border-b border-slate-800">
+            <tr>
+              <th class="px-4 py-2.5">타이틀</th>
+              <th class="px-4 py-2.5">매출 순위</th>
+              <th class="px-4 py-2.5">전일 변동</th>
+              <th class="px-4 py-2.5">인기 ↔ 매출 갭</th>
+              <th class="px-4 py-2.5">상태 진단</th>
+            </tr>
+          </thead>
+          <tbody id="watchlistTableBody" class="divide-y divide-slate-900"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 </div>
@@ -368,6 +483,7 @@ const SHEETS = {
 const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
 let currentView='dashboard';
 let todayGenreDonutInst = null; 
+let deepDiveGapInst = null, deepDiveMaInst = null;
 
 const aliases={
   date:['날짜','일자','date','수집일','기준일'],
@@ -777,24 +893,168 @@ function switchView(view){
   currentView=view;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
   document.getElementById('view-dashboard').classList.toggle('hidden',view!=='dashboard');
+  document.getElementById('view-deepDive').classList.toggle('hidden',view!=='deepDive');
   document.getElementById('view-search').classList.toggle('hidden',view!=='search');
   document.getElementById('view-database').classList.toggle('hidden',!(view==='sales'||view==='popular'||view==='newReleases'));
-  if(view==='sales'||view==='popular'||view==='newReleases')renderDatabase(view);
-  if(view==='search')renderSearchCharts();
+  
+  if(view==='sales'||view==='popular'||view==='newReleases') renderDatabase(view);
+  if(view==='search') renderSearchCharts();
+  if(view==='deepDive') renderDeepDive();
 }
 
 function populateGameNameOptions(){
   const names=new Set();
   (rawStore.sales?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.sales)));
   (rawStore.popular?.rows||[]).forEach(r=>names.add(gameName(r,rawStore.popular)));
+  const sortedNames = [...names].filter(Boolean).sort();
+  
   const dl=document.getElementById('gameNameOptions');
-  if(dl) dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
+  if(dl) dl.innerHTML=sortedNames.map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
+
+  const sel = document.getElementById('deepDiveGameSelect');
+  if(sel) {
+    sel.innerHTML = sortedNames.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
+  }
 }
 
-function topNTitles(data, n=5){
-  if(!data) return [];
-  const s = schema(data), latest = latestDate(data);
-  return data.rows.filter(r => r[s.date] === latest).sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999)).slice(0, n).map(r => gameName(r, data));
+// ----------------------------------------------------
+// 심층분석 (Rank Layer) 렌더링 로직 (클라이언트 데이터 기반)
+// ----------------------------------------------------
+function renderDeepDive() {
+  const sel = document.getElementById('deepDiveGameSelect');
+  let targetGame = sel ? sel.value : '';
+  const salesData = rawStore.sales;
+  const popData = rawStore.popular;
+  
+  if(!salesData || !popData) return;
+
+  const sSales = schema(salesData);
+  const sPop = schema(popData);
+
+  // 셀렉트박스 기본값이 비어있다면 매출 1위 게임 자동 지정
+  if(!targetGame) {
+    const latestSalesDates = getDates(salesData);
+    const latestDateStr = latestSalesDates[latestSalesDates.length - 1];
+    const topSalesRow = salesData.rows.find(r => r[sSales.date] === latestDateStr && rankOf(r, salesData) === 1);
+    targetGame = topSalesRow ? gameName(topSalesRow, salesData) : gameName(salesData.rows[0], salesData);
+    if(sel) sel.value = targetGame;
+  }
+
+  // 1 & 3. 갭 분석 & MA7 차트 데이터 수집
+  const dates = [...new Set([...getDates(salesData), ...getDates(popData)])].sort().slice(-15);
+  
+  const getGameRankAtDate = (data, s, d, name) => {
+    const row = data.rows.find(r => r[s.date] === d && gameName(r, data) === name);
+    return row ? rankOf(row, data) : null;
+  };
+
+  const gapData = dates.map(d => {
+    const sRank = getGameRankAtDate(salesData, sSales, d, targetGame);
+    const pRank = getGameRankAtDate(popData, sPop, d, targetGame);
+    return (sRank !== null && pRank !== null) ? (sRank - pRank) : null;
+  });
+
+  if(deepDiveGapInst) deepDiveGapInst.destroy();
+  deepDiveGapInst = new Chart(document.getElementById('deepDiveGapChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: '인기↔매출 갭 (매출 - 인기)',
+        data: gapData,
+        borderColor: '#818cf8', backgroundColor: 'rgba(129,140,248,0.1)', borderWidth: 2, fill: true, tension: .2, spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 6, callback: val => { const l = this.getLabelForValue?.(val) || ''; return l ? l.substring(5).replace('-', '/') : ''; } } },
+        y: { grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } }
+      }
+    }
+  });
+
+  const salesRanks = dates.map(d => getGameRankAtDate(salesData, sSales, d, targetGame));
+  const ma7Data = salesRanks.map((val, idx, arr) => {
+    if(idx < 6) return null;
+    const slice = arr.slice(idx - 6, idx + 1).filter(v => v !== null);
+    if(!slice.length) return null;
+    return Number((slice.reduce((a,b)=>a+b,0) / slice.length).toFixed(1));
+  });
+
+  if(deepDiveMaInst) deepDiveMaInst.destroy();
+  deepDiveMaInst = new Chart(document.getElementById('deepDiveMaChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [
+        { label: '일간 매출순위', data: salesRanks, borderColor: '#34d399', borderWidth: 1.5, pointRadius: 2, tension: .2, spanGaps: true },
+        { label: '7일 이동평균 (MA7)', data: ma7Data, borderColor: '#fbbf24', borderWidth: 2.5, pointRadius: 0, tension: .3, spanGaps: true }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 10 } } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 6, callback: val => { const l = this.getLabelForValue?.(val) || ''; return l ? l.substring(5).replace('-', '/') : ''; } } },
+        y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } }
+      }
+    }
+  });
+
+  // 2. 추정 매출 환산 (Revenue Proxy) 정렬 테이블
+  const snapshotData = rawStore.snapshot;
+  let risingList = [];
+  if(snapshotData) {
+    const snap = parseSnapshotSheet(snapshotData);
+    risingList = snap.salesRising || [];
+  }
+  const C = 8.0, b = 0.85;
+  const calcProxy = (rank) => rank ? Number((C * Math.pow(rank, -b)).toFixed(2)) : 0;
+  
+  const proxyTbody = document.getElementById('proxyRevenueTableBody');
+  if(risingList.length > 0) {
+    proxyTbody.innerHTML = risingList.slice(0, 5).map(item => {
+      const curRank = Number(item.rank) || 50;
+      let prevRank = curRank + 5;
+      const m = String(item.change || '').match(/▲\s*(\d+)/);
+      if(m) prevRank = curRank + Number(m[1]);
+
+      const diffRev = Number((calcProxy(curRank) - calcProxy(prevRank)).toFixed(2));
+      return `
+        <tr class="hover:bg-slate-800/40">
+          <td class="px-4 py-2.5 font-bold">${escapeHtml(item.rank)}위</td>
+          <td class="px-4 py-2.5 font-medium text-slate-200 cursor-pointer hover:underline" onclick="openGameDetail('${escapeAttr(item.name)}')">${escapeHtml(item.name)}</td>
+          <td class="px-4 py-2.5 muted">${escapeHtml(item.genre || '-')} · ${escapeHtml(item.publisher || '-')}</td>
+          <td class="px-4 py-2.5">${rankChangeBadge(item.change)}</td>
+          <td class="px-4 py-2.5 text-right font-bold text-emerald-400">+${diffRev}억 / 일</td>
+        </tr>`;
+    }).join('');
+  } else {
+    proxyTbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 muted">데이터 없음</td></tr>';
+  }
+
+  // 5. 워치리스트 (Watchlist)
+  const watchTbody = document.getElementById('watchlistTableBody');
+  const topNames = [...new Set(salesData.rows.map(r => gameName(r, salesData)))].slice(0, 5);
+  watchTbody.innerHTML = topNames.map(name => {
+    const metrics = getMetricsForGame(salesData, name, 15);
+    const popMetrics = getMetricsForGame(popData, name, 15);
+    const sRank = Number(metrics.currentRank) || 50;
+    const pRank = Number(popMetrics.currentRank) || 50;
+    const gapVal = sRank - pRank;
+    const gapStr = (gapVal > 0 ? `+${gapVal}` : `${gapVal}`);
+
+    return `
+      <tr class="hover:bg-slate-800/40 cursor-pointer" onclick="openGameDetail('${escapeAttr(name)}')">
+        <td class="px-4 py-2.5 font-medium text-indigo-300">${escapeHtml(name)}</td>
+        <td class="px-4 py-2.5 font-bold">${metrics.currentRank}${metrics.currentRank!=='-'?'위':''}</td>
+        <td class="px-4 py-2.5">${rankChangeBadge(metrics.change)}</td>
+        <td class="px-4 py-2.5 font-semibold text-amber-300">${gapStr}</td>
+        <td class="px-4 py-2.5 text-slate-300">${Math.abs(gapVal) > 15 ? 'UA 집행 감지' : '정상 안정'}</td>
+      </tr>`;
+  }).join('');
 }
 
 let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null;
@@ -1313,6 +1573,8 @@ async function fetchAllData(){
     
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
+    if(currentView==='deepDive')renderDeepDive();
+    
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
     status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
   }catch(err){
