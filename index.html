@@ -7,8 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: https:;">
-  <style>
+<style>
 :root { color-scheme: dark; }
 body { background:#080d18; }
 .card { background:rgba(15,23,42,.86); border:1px solid rgba(71,85,105,.5); }
@@ -248,7 +247,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800">
       <div>
         <h2 id="dbTitle" class="font-semibold">DB</h2>
-        <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
+        <p id="dbDescription" class="text-xs muted muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <label id="mobileFilterWrap" class="hidden items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer text-slate-300 hover:bg-slate-700 transition-colors">
@@ -456,6 +455,7 @@ function dateValue(v){
 }
 
 function getDates(data){
+  if(!data || !data.rows) return [];
   const s=schema(data);
   if(s.date<0)return [];
   return [...new Set(data.rows.map(r=>r[s.date]).filter(Boolean))].sort((a,b)=>dateValue(a)-dateValue(b));
@@ -464,7 +464,7 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
-// 안전한 내부 매칭 키 생성 (에러 방지 래퍼 적용)
+// 패키지명 우선 매칭, 없으면 앱이름으로 폴백 (과거 8/31~9/7 데이터 방어)
 function getGameKey(row, data) {
   try {
     const appId = gameAppId(row, data);
@@ -491,9 +491,9 @@ function setText(id,v){const el=document.getElementById(id); if(el)el.textConten
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-// 원본 DB 데이터를 활용해 대시보드 메인 화면 실시간 요약 구성 (에러 방지 안전 래퍼 포함)
+// 안전한 Fallback 요약 데이터 생성기 (에러 방지 및 패키지명/앱이름 교차 매칭 완벽 지원)
 function buildSnapshotFallback(salesData, popData) {
-  if (!salesData || !popData) return null;
+  if (!salesData || !popData || !salesData.rows || !popData.rows) return null;
   const salesDates = getDates(salesData);
   if (salesDates.length === 0) return null;
   
