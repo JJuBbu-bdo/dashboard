@@ -358,11 +358,10 @@ const SPREADSHEET_ID = '1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw';
 const SHEETS = {
   sales:'DB_매출순위',
   popular:'DB_인기순위',
-  newReleases:'월간신작DB',
-  snapshot:'Daily_스냅샷'
+  newReleases:'월간신작DB'
 };
 
-const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
+const rawStore = {sales:null,popular:null,newReleases:null};
 let currentView='dashboard';
 let todayGenreDonutInst = null; 
 
@@ -462,8 +461,23 @@ function getDates(data){
   return [...new Set(data.rows.map(r=>r[s.date]).filter(Boolean))].sort((a,b)=>dateValue(a)-dateValue(b));
 }
 function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
-function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
-function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
+
+// 안전한 인덱스 참조 헬퍼 함수
+function gameName(row, data) {
+  if (!row) return '-';
+  const s = schema(data);
+  if (s.name >= 0 && row[s.name] !== undefined && row[s.name] !== '') return String(row[s.name]);
+  if (row[3] !== undefined && row[3] !== '') return String(row[3]); // D열 기본 Fallback
+  return String(row[0] || '-');
+}
+
+function gameAppId(row, data) {
+  if (!row) return '';
+  const s = schema(data);
+  if (s.appId >= 0 && row[s.appId] !== undefined) return String(row[s.appId]);
+  if (row[4] !== undefined) return String(row[4]); // E열 패키지명 기본 Fallback
+  return '';
+}
 
 function getGameKey(row, data) {
   try {
@@ -475,26 +489,31 @@ function getGameKey(row, data) {
   return gameName(row, data);
 }
 
-function rankOf(row,data){
-  const s=schema(data);
-  const n=Number(String(row?.[s.rank]??'').replace(/[^0-9.-]/g,''));
-  return Number.isFinite(n)&&n>0?n:null;
+function rankOf(row, data) {
+  if (!row) return null;
+  const s = schema(data);
+  let val = '';
+  if (s.rank >= 0 && row[s.rank] !== undefined) val = row[s.rank];
+  else if (row[1] !== undefined) val = row[1]; // B열 기본 Fallback
+  const n = Number(String(val).replace(/[^0-9.-]/g,''));
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
-function scoreOf(row,data){
-  const s=schema(data);
-  if(!s || s.score < 0) return '-';
-  const val = String(row?.[s.score]??'').trim();
-  return (val && val !== '-' && val !== '0') ? val : '-';
+
+function scoreOf(row, data) {
+  if (!row) return '-';
+  const s = schema(data);
+  let val = '';
+  if (s.score >= 0 && row[s.score] !== undefined) val = row[s.score];
+  else if (row[8] !== undefined) val = row[8]; // I열 평점 기본 Fallback
+  const str = String(val).trim();
+  return (str && str !== '-' && str !== '0') ? str : '-';
 }
 
 function setText(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-function parseSnapshotSheet(snapshotData, salesData, popData) {
-  return buildSnapshotFallback(salesData, popData);
-}
-
+// 안전한 Fallback 요약 데이터 생성기
 function buildSnapshotFallback(salesData, popData) {
   if (!salesData || !popData || !salesData.rows || !popData.rows) return null;
   const salesDates = getDates(salesData);
@@ -510,7 +529,7 @@ function buildSnapshotFallback(salesData, popData) {
     const map = new Map();
     if (!data || !data.rows) return map;
     data.rows.forEach(r => {
-      if (r[s.date] === targetDate) {
+      if (r[s.date] === targetDate || r[0] === targetDate) {
         const key = getGameKey(r, data);
         const rank = rankOf(r, data);
         if(key && rank) map.set(key, { rank, r });
@@ -527,8 +546,8 @@ function buildSnapshotFallback(salesData, popData) {
   const toList = (map, s, data) => Array.from(map.values()).map(val => ({
     rank: val.rank,
     name: gameName(val.r, data),
-    genre: s.genre >= 0 ? String(val.r[s.genre]||'') : '',
-    publisher: s.publisher >= 0 ? String(val.r[s.publisher]||'') : '',
+    genre: s.genre >= 0 ? String(val.r[s.genre]||val.r[5]||'') : '',
+    publisher: s.publisher >= 0 ? String(val.r[s.publisher]||val.r[6]||'') : '',
     score: scoreOf(val.r, data)
   })).sort((a,b) => a.rank - b.rank);
   
@@ -553,9 +572,9 @@ function buildSnapshotFallback(salesData, popData) {
     const key = getGameKey(x.r, salesData);
     const pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
     const s = sSales;
-    const hIdx = s.change;
-    const changeVal = hIdx >= 0 ? Number(x.r[hIdx]) : null;
-    return { ...x, diff: changeVal !== null && !isNaN(changeVal) && changeVal !== 999 ? changeVal : (pRank ? (pRank - x.rank) : 0), change: getChange(x, prevSalesMap, salesData, sSales) };
+    const hIdx = s.change >= 0 ? s.change : 7;
+    const changeVal = Number(x.r[hIdx] ?? x.r[7]);
+    return { ...x, diff: !isNaN(changeVal) && changeVal !== 999 ? changeVal : (pRank ? (pRank - x.rank) : 0), change: getChange(x, prevSalesMap, salesData, sSales) };
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
@@ -603,7 +622,7 @@ function getLatestScore(gameTitle) {
   const findIn = (data) => {
     if(!data || !data.rows) return null;
     const s = schema(data), latest = latestDate(data);
-    const row = data.rows.find(r => r[s.date] === latest && (gameName(r, data) === gameTitle || gameAppId(r, data) === gameTitle || getGameKey(r, data) === gameTitle));
+    const row = data.rows.find(r => (r[s.date] === latest || r[0] === latest) && (gameName(r, data) === gameTitle || gameAppId(r, data) === gameTitle || getGameKey(r, data) === gameTitle));
     return row ? scoreOf(row, data) : null;
   };
   const sc = findIn(rawStore.sales) || findIn(rawStore.popular);
@@ -664,7 +683,7 @@ function renderGenreBars(elId,arr){
 }
 
 function renderToday(){
-  const p = parseSnapshotSheet(rawStore.snapshot, rawStore.sales, rawStore.popular);
+  const p = buildSnapshotFallback(rawStore.sales, rawStore.popular);
   if(!p) return;
   
   const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
@@ -766,7 +785,7 @@ function populateGameNameOptions(){
 function topNTitles(data, n=5){
   if(!data || !data.rows) return [];
   const s = schema(data), latest = latestDate(data);
-  return data.rows.filter(r => r[s.date] === latest).sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999)).slice(0, n).map(r => gameName(r, data));
+  return data.rows.filter(r => r[s.date] === latest || r[0] === latest).sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999)).slice(0, n).map(r => gameName(r, data));
 }
 
 let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null;
@@ -783,7 +802,7 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t, clip:false,
     data:dates.map(d=>{
-      const row=data.rows.find(r=>r[s.date]===d&&(gameName(r,data)===t || gameAppId(r,data)===t || getGameKey(r,data)===t));
+      const row=data.rows.find(r=>(r[s.date]===d || r[0]===d)&&(gameName(r,data)===t || gameAppId(r,data)===t || getGameKey(r,data)===t));
       return row?rankOf(row,data):null;
     }),
     borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
@@ -1057,12 +1076,12 @@ function filterCurrentTable(){
   } else {
     const dVal = document.getElementById('filterDay').value;
     if(dVal) {
-      rows = rows.filter(r => r[s.date] === dVal);
+      rows = rows.filter(r => (r[s.date] === dVal || r[0] === dVal));
     }
   }
 
   if(q) rows = rows.filter(r => r.some(c => String(c??'').toLowerCase().includes(q)));
-  if(s.rank >= 0) rows = rows.slice().sort((a,b) => (rankOf(a,data)||999999) - (rankOf(b,data)||999999));
+  if(s.rank >= 0 || true) rows = rows.slice().sort((a,b) => (rankOf(a,data)||999999) - (rankOf(b,data)||999999));
   
   let colIndexes = data.cols.map((_, i) => i);
   if (currentView === 'sales' || currentView === 'popular') {
@@ -1070,8 +1089,8 @@ function filterCurrentTable(){
       const colName = norm(data.cols[i]);
       return !['증감수치', 'change', '패키지명', 'appid', 'package'].includes(colName);
     });
-    const scoreIdx = s.score;
-    if (scoreIdx >= 0 && colIndexes.includes(scoreIdx)) {
+    const scoreIdx = s.score >= 0 ? s.score : 8;
+    if (colIndexes.includes(scoreIdx)) {
       colIndexes = colIndexes.filter(i => i !== scoreIdx);
       colIndexes.splice(3, 0, scoreIdx);
     }
@@ -1084,10 +1103,11 @@ function filterCurrentTable(){
   
   document.getElementById('tableBody').innerHTML = rows.length ? rows.map(r => {
     const gName = gameName(r, data);
+    const scoreIdx = s.score >= 0 ? s.score : 8;
     return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">` +
     colIndexes.map(i => {
-      let val = r[i] === '' ? '-' : r[i];
-      if(i === s.score && val !== '-') {
+      let val = r[i] === '' || r[i] === undefined ? '-' : r[i];
+      if(i === scoreIdx && val !== '-') {
         val = `<span class="text-amber-400 font-semibold"><i class="fa-solid fa-star text-[10px] mr-1"></i>${escapeHtml(val)}</span>`;
       } else {
         val = escapeHtml(val);
@@ -1143,27 +1163,28 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
   let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0;
   
-  const matchFn = r => r[s.date] === latest && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget);
+  const matchFn = r => (r[s.date] === latest || r[0] === latest) && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget);
   const latestRow = data.rows.find(matchFn);
   if(latestRow) {
     currentRank = rankOf(latestRow, data) || '-';
-    change = s.change >= 0 ? (latestRow[s.change] || '-') : '-';
-    genre = s.genre >= 0 ? (latestRow[s.genre] || '') : '';
-    pub = s.publisher >= 0 ? (latestRow[s.publisher] || '') : '';
+    const cIdx = s.change >= 0 ? s.change : 7;
+    change = latestRow[cIdx] !== undefined ? latestRow[cIdx] : '-';
+    genre = s.genre >= 0 ? (latestRow[s.genre] || latestRow[5] || '') : (latestRow[5] || '');
+    pub = s.publisher >= 0 ? (latestRow[s.publisher] || latestRow[6] || '') : (latestRow[6] || '');
     score = scoreOf(latestRow, data);
   }
 
   const targetDates = dates.slice(-recentDays);
   targetDates.forEach(d => {
-    const row = data.rows.find(r => r[s.date] === d && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget));
+    const row = data.rows.find(r => (r[s.date] === d || r[0] === d) && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget));
     if(row){
       const rnk = rankOf(row, data);
       if(rnk){
         validRanks.push(rnk);
         if(rnk <= 10) top10Count++;
-        if(!genre && s.genre >= 0) genre = row[s.genre] || '';
-        if(!pub && s.publisher >= 0) pub = row[s.publisher] || '';
-        if((score === '-' || !score) && s.score >= 0) score = scoreOf(row, data);
+        if(!genre) genre = row[s.genre] || row[5] || '';
+        if(!pub) pub = row[s.publisher] || row[6] || '';
+        if(score === '-') score = scoreOf(row, data);
       }
     }
   });
@@ -1172,7 +1193,7 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
   
   if (dates.length > 1 && validRanks.length > 0) {
-    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => r[s.date] === d && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget) && rankOf(r, data)));
+    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => (r[s.date] === d || r[0] === d) && (gameName(r,data) === gameNameTarget || gameAppId(r,data) === gameNameTarget || getGameKey(r, data) === gameNameTarget) && rankOf(r, data)));
     if (firstValidDateIndex === dates.length - 1) {
       change = 'NEW';
     }
@@ -1212,7 +1233,7 @@ function openGameDetail(targetName) {
   const getRankData = (data, d) => {
     if(!data || !data.rows) return null;
     const s = schema(data);
-    const row = data.rows.find(r => r[s.date] === d && (gameName(r,data) === targetName || gameAppId(r,data) === targetName || getGameKey(r, data) === targetName));
+    const row = data.rows.find(r => (r[s.date] === d || r[0] === d) && (gameName(r,data) === targetName || gameAppId(r,data) === targetName || getGameKey(r, data) === targetName));
     return row ? rankOf(row, data) : null;
   };
 
@@ -1267,13 +1288,12 @@ async function fetchAllData(){
   status.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> 동기화 중';
   btn.disabled=true;
   try{
-    const [sales,popular,news,snapshot]=await Promise.all([
+    const [sales,popular,news]=await Promise.all([
       fetchSheetData(SHEETS.sales,1), 
       fetchSheetData(SHEETS.popular,1), 
-      fetchSheetData(SHEETS.newReleases,1),
-      fetchSheetData(SHEETS.snapshot,1).catch(() => null)
+      fetchSheetData(SHEETS.newReleases,1)
     ]);
-    rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news; rawStore.snapshot=snapshot;
+    rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news;
     
     renderToday(); 
     populateGameNameOptions();
