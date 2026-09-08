@@ -294,7 +294,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
   </div>
   
   <div class="p-5 space-y-6 flex-1">
-    <!-- 구글플레이 검색 영역 조정: 검색 버튼 + 평점 뱃지 병렬 배치 -->
     <div class="flex items-center gap-2">
       <a id="detailPlayStoreLink" href="#" target="_blank" class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold transition-colors">
         <i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 검색
@@ -474,7 +473,7 @@ function scoreOf(row,data){
 }
 
 function setText(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;ummer'[m]||m}));}
 function escapeAttr(v){return escapeHtml(v);}
 
 function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
@@ -560,7 +559,7 @@ function buildSnapshotFallback(salesData, popData) {
   const salesList = toList(latestSalesMap, sSales, salesData);
   
   const getChange = (name, rank, prevMap) => {
-    if (!prev) return '-'; 
+    if (!prev) return 'NEW'; 
     if (!prevMap.has(name)) return 'NEW';
     const prevRank = prevMap.get(name).rank;
     if (prevRank === rank) return '-';
@@ -611,13 +610,13 @@ function rankChangeBadge(change, large=false){
   
   const num = Number(c);
   if(!isNaN(num)) {
+    if(num > 900) return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
     if(num > 0) return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">▲ ${num}</span>`;
     if(num < 0) return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">▼ ${Math.abs(num)}</span>`;
   }
   return `<span class="rank-flat ${textClass}">${escapeHtml(c)}</span>`;
 }
 
-// 최신 스토어 평점 가져오기 헬퍼
 function getLatestScore(gameTitle) {
   const findIn = (data) => {
     if(!data) return null;
@@ -637,13 +636,18 @@ function renderRankList(elId, items, {showMeta=true}={}) {
   }
 
   el.innerHTML = items.map(it => {
-    // DB에서 해당 게임의 최신 평점 조회
     const scoreVal = it.score || getLatestScore(it.name);
     const scoreBadge = (scoreVal && scoreVal !== '-') 
       ? `<span class="text-amber-400 font-semibold text-[11px] flex items-center shrink-0 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
            <i class="fa-solid fa-star text-[9px] mr-1"></i>${escapeHtml(scoreVal)}
          </span>` 
       : '';
+
+    // 인기순위 신규 진입 리스트 등에서 증감 데이터가 없거나 '-' 이면 'NEW'로 강제 표시
+    let displayChange = it.change;
+    if (elId === 'newEntriesList' && (!displayChange || displayChange === '-' || displayChange === '0')) {
+      displayChange = 'NEW';
+    }
 
     return `
       <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0 hover:bg-slate-800/30 cursor-pointer rounded px-1.5 transition-colors" onclick="openGameDetail('${escapeAttr(it.name)}')">
@@ -657,7 +661,7 @@ function renderRankList(elId, items, {showMeta=true}={}) {
         <div class="flex items-center gap-2 shrink-0">
           ${scoreBadge}
           <div class="w-12 text-right flex justify-end">
-            ${rankChangeBadge(it.change)}
+            ${rankChangeBadge(displayChange)}
           </div>
         </div>
       </li>`;
@@ -693,7 +697,6 @@ function renderToday(){
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
 
-  // 1. 인기 1위 (평점 뱃지 연동)
   const topPop=p.popularTop10[0];
   setText('todayPopularTop', topPop ? topPop.name : '-');
   setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
@@ -702,7 +705,6 @@ function renderToday(){
   document.getElementById('todayPopularScore').innerHTML = popScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${popScore}` : '';
   document.getElementById('cardPopular1').onclick = () => { if(topPop) openGameDetail(topPop.name); };
 
-  // 2. 매출 1위 (평점 뱃지 연동)
   const topSales=p.salesTop10[0];
   setText('todaySalesTop', topSales ? topSales.name : '-');
   setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
@@ -711,7 +713,6 @@ function renderToday(){
   document.getElementById('todaySalesScore').innerHTML = salesScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${salesScore}` : '';
   document.getElementById('cardSales1').onclick = () => { if(topSales) openGameDetail(topSales.name); };
 
-  // 3. 인기순위 신규 진입 (평점 뱃지 연동)
   const topNew = p.newEntries[0];
   setText('todayNewTop', topNew ? topNew.name : '-');
   setText('todayNewMeta', topNew ? `현재 ${topNew.rank}위 (최고 진입)` : '신규 진입 없음');
@@ -720,7 +721,6 @@ function renderToday(){
   document.getElementById('todayNewScore').innerHTML = newScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${newScore}` : '';
   document.getElementById('cardNew1').onclick = () => { if(topNew) openGameDetail(topNew.name); };
 
-  // 4. 매출 최고 상승 (평점 뱃지 연동)
   const topRise = p.salesRising[0];
   setText('todayRisingTop', topRise ? topRise.name : '-');
   setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
@@ -729,7 +729,6 @@ function renderToday(){
   document.getElementById('todayRisingScore').innerHTML = riseScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${riseScore}` : '';
   document.getElementById('cardRising1').onclick = () => { if(topRise) openGameDetail(topRise.name); };
 
-  // 5. 장르 점유 도넛 차트
   if(todayGenreDonutInst) todayGenreDonutInst.destroy();
   const top3Genres = p.salesGenre.slice(0, 3);
   const totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0);
@@ -1113,7 +1112,6 @@ function filterCurrentTable(){
   if(q) rows = rows.filter(r => r.some(c => String(c??'').toLowerCase().includes(q)));
   if(s.rank >= 0) rows = rows.slice().sort((a,b) => (rankOf(a,data)||999999) - (rankOf(b,data)||999999));
   
-  // 증감수치(수식열)는 숨기고, 평점 열은 정상 노출되도록 유지
   const hidden = data.cols.map(c => ['증감수치','change'].includes(norm(c)));
   const visibleIndexes = data.cols.map((_,i) => i).filter(i => !hidden[i]);
 
@@ -1123,7 +1121,6 @@ function filterCurrentTable(){
     return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">` +
     visibleIndexes.map(i => {
       let val = r[i] === '' ? '-' : r[i];
-      // 평점 열일 경우 별 아이콘 부착
       if(i === s.score && val !== '-') {
         val = `<span class="text-amber-400 font-semibold"><i class="fa-solid fa-star text-[10px] mr-1"></i>${escapeHtml(val)}</span>`;
       } else {
@@ -1206,6 +1203,17 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
 
   const high = validRanks.length ? Math.min(...validRanks) : '-';
   const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
+  
+  // 첫날 등장했거나 전일 데이터가 없어 999 혹은 뉴로 잡힌 경우 'NEW'로 처리
+  if (dates.length > 1 && validRanks.length > 0) {
+    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => r[s.date] === d && gameName(r,data) === gameNameTarget && rankOf(r, data)));
+    if (firstValidDateIndex === dates.length - 1) {
+      change = 'NEW';
+    }
+  } else if (dates.length === 1 && validRanks.length > 0) {
+    change = 'NEW';
+  }
+
   return { currentRank, change, high, avg, top10: top10Count, validRanks, genre, pub, score };
 }
 
@@ -1223,7 +1231,6 @@ function openGameDetail(targetName) {
   setText('detailPopRank', popMetrics.currentRank + (popMetrics.currentRank !== '-' ? '위' : ''));
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
 
-  // 평점 뱃지 연동
   const finalScore = (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-';
   setText('detailScoreBadge', finalScore);
 
