@@ -250,7 +250,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800">
       <div>
         <h2 id="dbTitle" class="font-semibold">DB</h2>
-        <p id="dbDescription" class="text-xs muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
+        <p id="dbDescription" class="text-xs muted muted mt-1">원본 DB 조회 (행을 클릭하면 상세 분석 패널이 열립니다)</p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <label id="mobileFilterWrap" class="hidden items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer text-slate-300 hover:bg-slate-700 transition-colors">
@@ -467,6 +467,7 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
+// 핵심 매칭 키: 패키지명이 누락(공백 또는 '-')이면 타이틀명(앱이름)을 동일 앱으로 판단하여 매칭
 function getGameKey(row, data) {
   const appId = gameAppId(row, data);
   if(appId && appId !== '-' && appId.trim() !== '') {
@@ -492,6 +493,8 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;',
 function escapeAttr(v){return escapeHtml(v);}
 
 function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
+
+// 스냅샷 시트 파싱 (패키지명 열 추가로 인해 1칸씩 밀려난 인덱스 정밀 보정)
 function readRankBlock(rows,startRow,cols,maxRows){
   const out=[];
   for(let i=0;i<maxRows;i++){
@@ -515,19 +518,22 @@ function readGenreBlock(rows,startRow,nameCol,countCol,maxRows){
 function findRowIndex(rows,matchText,fromRow=0){for(let r=fromRow;r<rows.length;r++){if((rows[r]||[]).some(cell=>String(cell??'').includes(matchText)))return r;}return -1;}
 function findColIndex(rows,rowIdx,matchText){return (rows[rowIdx]||[]).findIndex(cell=>String(cell??'').includes(matchText));}
 
-// Daily_스냅샷 시트의 원래 고정 레이아웃 인덱스 복구
 function parseSnapshotSheet(data){
   const rows=data.rows;
   const dateRow=findRowIndex(rows,'기준일');
   let asOfDate='';
   if(dateRow>=0){const c=findColIndex(rows,dateRow,'기준일');asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';}
   const topRow=findRowIndex(rows,'일간 인기순위');
-  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
-  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
+  // 인기순위 (열 추가 반영: 이름 D열(3), 장르 F열(5), 퍼블리셔 G열(6), 증감 H열(7))
+  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:3,genre:5,publisher:6,change:7},10):[];
+  // 매출순위 (열 추가 반영: 순위 J열(9), 이름 K열(10), 장르 M열(12), 퍼블리셔 N열(13), 증감 O열(14))
+  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:9,name:10,genre:12,publisher:13,change:14},10):[];
+  
   const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
-  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:3,publisher:4},10):[];
-  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:7,name:8,change:9},10):[];
-  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:10,name:11,change:12},10):[];
+  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:3,genre:5,publisher:6},10):[];
+  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:9,name:10,change:11},10):[];
+  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:13,name:14,change:15},10):[];
+  
   const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
   const popularGenre=popGenreRow>=0?readGenreBlock(rows,popGenreRow+2,1,2,30):[];
   const salesGenreRow=findRowIndex(rows,'장르 비중(매출순)',changeRow+1);
