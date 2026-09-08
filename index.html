@@ -293,7 +293,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <button onclick="closeGameDetail()" class="text-slate-400 hover:text-white mt-1 shrink-0"><i class="fa-solid fa-xmark text-xl"></i></button>
   </div>
   
-  <div class="p-5 space-y-6 flex-1">
+  <div class="p-5 space-y-5 flex-1">
     <div class="flex items-center gap-2">
       <a id="detailPlayStoreLink" href="#" target="_blank" class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold transition-colors">
         <i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 검색
@@ -321,9 +321,10 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       </div>
     </div>
 
+    <!-- 순위 복합 추이 -->
     <div>
       <div class="flex items-center justify-between mb-3">
-        <h4 class="text-sm font-semibold">순위 복합 추이 (최근 15일)</h4>
+        <h4 class="text-sm font-semibold">순위 복합 추이 <span class="text-[11px] font-normal text-slate-400">(최근 15일)</span></h4>
         <div class="flex items-center gap-3 text-[10px] font-medium">
           <span class="flex items-center gap-1 text-indigo-300"><span class="w-2 h-2 rounded-full bg-indigo-400"></span>매출</span>
           <span class="flex items-center gap-1 text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>인기</span>
@@ -332,6 +333,16 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       <div class="h-[220px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailChart"></canvas></div>
     </div>
 
+    <!-- 평점 추이 -->
+    <div class="mt-2">
+      <div class="flex items-center justify-between mb-2">
+        <h4 class="text-sm font-semibold">평점 추이 <span class="text-[11px] font-normal text-slate-400">(최근 15일)</span></h4>
+        <span class="text-amber-400 text-[10px] font-medium"><i class="fa-solid fa-star mr-1"></i>0.0 ~ 5.0</span>
+      </div>
+      <div class="h-[100px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailScoreChart"></canvas></div>
+    </div>
+
+    <!-- 순위 분석 -->
     <div>
       <h4 class="text-sm font-semibold mb-3">순위 분석 <span class="text-[11px] muted font-normal ml-1">(최근 15일 데이터 기준)</span></h4>
       <div class="card rounded-xl border-slate-700/50 divide-y divide-slate-700/50 text-sm">
@@ -443,7 +454,6 @@ function parseGviz(text){
 }
 
 async function fetchSheetData(sheetName, headers=1){
-  // 브라우저 캐시 방지를 위해 URL에 타임스탬프 추가
   const url=`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json;headers:${headers}&sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`;
   const res=await fetch(url,{cache:'no-store'});
   if(!res.ok)throw new Error(`${sheetName}: HTTP ${res.status}`);
@@ -456,7 +466,7 @@ function dateValue(v){
   return m?new Date(+m[1],+m[2]-1,+m[3]).getTime():Date.parse(s)||0;
 }
 
-// 1. 완벽한 날짜 추출 (A열 고정)
+// 1. 날짜 추출 (A열 고정 강제화)
 function rowDate(row) {
   if(!row) return '';
   const val = String(row[0] || '').trim();
@@ -470,7 +480,14 @@ function getDates(data){
 }
 function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 
-// 2. 완벽한 게임명 추출 (D열 고정 - 9/7과 9/8 모두 앱 이름은 D열에 위치)
+// 2. 앱 이름 추출 (D열 고정)
+function gameName(row) {
+  if(!row) return '-';
+  const name = String(row[3] || '').trim();
+  return name || '-';
+}
+
+// 3. 고유키 추출 (어제/오늘 100% 매칭)
 function getGameKey(row) {
   if (!row) return '-';
   const name = String(row[3] || '').trim();
@@ -484,6 +501,13 @@ function rankOf(row) {
   if(!str) return null;
   const n = Number(str);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function scoreOf(row) {
+  if(!row) return '-';
+  const val = row.length > 8 ? row[8] : row[7];
+  const str = String(val ?? '').trim();
+  return (str && str !== '-' && str !== '0') ? str : '-';
 }
 
 function setText(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
@@ -518,11 +542,9 @@ function buildSnapshotFallback(salesData, popData) {
   
   const toList = (map, data) => Array.from(map.values()).map(val => {
     const r = val.r;
-    // 9/8 기준으로 값이 없으면 9/7 인덱스로 찾도록 Fallback 처리
-    const s = schema(data);
-    const genre = s.genre >= 0 ? r[s.genre] : (r.length > 6 ? r[5] : r[4]);
-    const pub = s.publisher >= 0 ? r[s.publisher] : (r.length > 6 ? r[6] : r[5]);
-    const score = s.score >= 0 ? r[s.score] : (r.length > 8 ? r[8] : r[7]);
+    const genre = r.length > 6 ? r[5] : r[4];
+    const pub = r.length > 6 ? r[6] : r[5];
+    const score = r.length > 8 ? r[8] : r[7];
     
     return {
       rank: val.rank,
@@ -564,7 +586,7 @@ function buildSnapshotFallback(salesData, popData) {
     const pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
     let diff = 0;
     if (pRank !== null) {
-      diff = pRank - x.rank; // 강제 연산으로 증감수치 오류 완전 차단
+      diff = pRank - x.rank; 
     }
     return { ...x, diff, change: getChange(key, x.rank, prevSalesMap) };
   });
@@ -617,8 +639,7 @@ function getLatestScore(gameTitle) {
     const latest = latestDate(data);
     const row = data.rows.find(r => rowDate(r) === latest && getGameKey(r) === targetKey);
     if(!row) return null;
-    const s = schema(data);
-    const scoreVal = s.score >= 0 ? row[s.score] : (row.length > 8 ? row[8] : row[7]);
+    const scoreVal = row.length > 8 ? row[8] : row[7];
     return String(scoreVal || '').trim();
   };
   const sc = findIn(rawStore.sales) || findIn(rawStore.popular);
@@ -781,10 +802,10 @@ function populateGameNameOptions(){
 function topNTitles(data, n=5){
   if(!data || !data.rows) return [];
   const latest = latestDate(data);
-  return data.rows.filter(r => rowDate(r) === latest).sort((a, b) => (rankOf(a) || 999999) - (rankOf(b) || 999999)).slice(0, n).map(r => String(r[3]||'-').trim());
+  return data.rows.filter(r => rowDate(r) === latest).sort((a, b) => (rankOf(r) || 999999) - (rankOf(b) || 999999)).slice(0, n).map(r => String(r[3]||'-').trim());
 }
 
-let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null;
+let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null, detailScoreChartInst=null;
 
 function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, duration, padding=15) {
   if(!data || !data.rows) return prevInst;
@@ -1155,7 +1176,8 @@ function renderDatabase(view){
 
 function getMetricsForGame(data, gameNameTarget, recentDays=15){
   if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-' };
-  const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
+  const dates = getDates(data);
+  const latest = dates[dates.length-1];
   let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0;
   
   const targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
@@ -1164,12 +1186,10 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   const latestRow = data.rows.find(matchFn);
   if(latestRow) {
     currentRank = rankOf(latestRow) || '-';
-    const cIdx = s.change >= 0 ? s.change : (latestRow.length > 7 ? 7 : -1);
-    change = cIdx >= 0 ? latestRow[cIdx] : '-';
-    genre = s.genre >= 0 ? (latestRow[s.genre] || '') : (latestRow[5] || '');
-    pub = s.publisher >= 0 ? (latestRow[s.publisher] || '') : (latestRow[6] || '');
-    const scoreIdx = s.score >= 0 ? s.score : 8;
-    score = scoreIdx >= 0 ? (latestRow[scoreIdx] || '-') : '-';
+    change = latestRow.length > 7 ? latestRow[7] : '-';
+    genre = latestRow.length > 6 ? latestRow[5] : (latestRow[4] || '');
+    pub = latestRow.length > 6 ? latestRow[6] : (latestRow[5] || '');
+    score = scoreOf(latestRow);
   }
 
   const targetDates = dates.slice(-recentDays);
@@ -1180,9 +1200,9 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
       if(rnk){
         validRanks.push(rnk);
         if(rnk <= 10) top10Count++;
-        if(!genre) genre = row[s.genre >= 0 ? s.genre : 5] || '';
-        if(!pub) pub = row[s.publisher >= 0 ? s.publisher : 6] || '';
-        if(score === '-') score = row[s.score >= 0 ? s.score : 8] || '-';
+        if(!genre) genre = row.length > 6 ? row[5] : (row[4] || '');
+        if(!pub) pub = row.length > 6 ? row[6] : (row[5] || '');
+        if(score === '-' || !score) score = scoreOf(row);
       }
     }
   });
@@ -1236,14 +1256,22 @@ function openGameDetail(targetName) {
     return row ? rankOf(row) : null;
   };
 
-  const datasets = [
+  const getScoreData = (data, d) => {
+    if(!data || !data.rows) return null;
+    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
+    if(!row) return null;
+    const val = Number(scoreOf(row));
+    return (!isNaN(val) && val > 0) ? val : null;
+  };
+
+  const rankDatasets = [
     { label: '매출 순위', clip: false, data: allDates.map(d => getRankData(rawStore.sales, d)), borderColor: '#818cf8', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: .25, spanGaps: true },
     { label: '인기 순위', clip: false, data: allDates.map(d => getRankData(rawStore.popular, d)), borderColor: '#34d399', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4,4], pointRadius: 2, tension: .25, spanGaps: true }
   ];
 
   if(detailChartInst) detailChartInst.destroy();
   detailChartInst = new Chart(document.getElementById('detailChart').getContext('2d'), {
-    type: 'line', data: { labels: allDates, datasets },
+    type: 'line', data: { labels: allDates, datasets: rankDatasets },
     options: {
       layout: { padding: { top: 10 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw??'-'}위` } } },
@@ -1260,6 +1288,34 @@ function openGameDetail(targetName) {
           } 
         }, 
         y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } 
+      }
+    }
+  });
+
+  const scoreDatasets = [
+    { 
+      label: '통합 평점', 
+      clip: false, 
+      data: allDates.map(d => getScoreData(rawStore.sales, d) || getScoreData(rawStore.popular, d) || null), 
+      borderColor: '#fbbf24', 
+      backgroundColor: 'rgba(251, 191, 36, 0.1)', 
+      borderWidth: 2, 
+      pointRadius: 2, 
+      tension: .25, 
+      spanGaps: true,
+      fill: true
+    }
+  ];
+
+  if(detailScoreChartInst) detailScoreChartInst.destroy();
+  detailScoreChartInst = new Chart(document.getElementById('detailScoreChart').getContext('2d'), {
+    type: 'line', data: { labels: allDates, datasets: scoreDatasets },
+    options: {
+      layout: { padding: { top: 5, bottom: 5 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `평점: ${c.raw??'-'}` } } },
+      scales: { 
+        x: { display: false }, 
+        y: { min: 0, max: 5, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#fbbf24', stepSize: 1 } } 
       }
     }
   });
