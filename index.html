@@ -799,7 +799,7 @@ function populateGameNameOptions(){
 function topNTitles(data, n=5){
   if(!data || !data.rows) return [];
   const latest = latestDate(data);
-  return data.rows.filter(r => rowDate(r) === latest).sort((a, b) => (rankOf(r) || 999999) - (rankOf(b) || 999999)).slice(0, n).map(r => String(r[3]||'-').trim());
+  return data.rows.filter(r => rowDate(r) === latest).sort((a, b) => (rankOf(a) || 999999) - (rankOf(b) || 999999)).slice(0, n).map(r => String(r[3]||'-').trim());
 }
 
 let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null, detailScoreChartInst=null;
@@ -846,6 +846,13 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   });
 }
 
+function getDefaultSearchTitles() {
+  const pop = topNTitles(rawStore.popular, 3);
+  const sales = topNTitles(rawStore.sales, 3);
+  const combined = [...new Set([...pop, ...sales])].filter(Boolean);
+  return combined.length > 0 ? combined : ['데이터 없음'];
+}
+
 function renderSearchCharts(){
   if(!rawStore.sales&&!rawStore.popular)return;
   const t1=document.getElementById('searchTitle1').value.trim(), t2=document.getElementById('searchTitle2').value.trim();
@@ -862,7 +869,8 @@ function renderSearchCharts(){
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
   const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
   
-  const targetTitles = titles.length ? titles : topNTitles(rawStore.sales, 5);
+  // 검색어가 없으면 인기 상위 3개 + 매출 상위 3개를 기본 출력
+  const targetTitles = titles.length ? titles : getDefaultSearchTitles();
 
   if(showPop) searchPopularChartInst=drawChartShared('searchPopularChart',searchPopularChartInst,rawStore.popular,targetTitles,colors, baseDate, duration);
   if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,targetTitles,colors, baseDate, duration);
