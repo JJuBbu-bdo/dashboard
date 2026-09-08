@@ -491,16 +491,7 @@ function setText(id,v){const el=document.getElementById(id); if(el)el.textConten
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-// 'Daily_스냅샷' 시트 파서 (실제 시트 구조 매핑)
 function parseSnapshotSheet(snapshotData, salesData, popData) {
-  if (!snapshotData || !snapshotData.rows || snapshotData.rows.length === 0) {
-    return buildSnapshotFallback(salesData, popData);
-  }
-
-  const rows = snapshotData.rows;
-  const latest = latestDate(salesData) || new Date().toISOString().slice(0, 10);
-  
-  // Daily_스냅샷 구조 예시 기반 안전 파싱 (데이터가 비어있으면 원본 DB 폴백 사용)
   return buildSnapshotFallback(salesData, popData);
 }
 
@@ -1293,8 +1284,9 @@ async function fetchAllData(){
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
     status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
   }catch(err){
+    console.error(err);
     status.className='text-xs px-3 py-1.5 rounded-full bg-rose-950 text-rose-300';
-    status.innerHTML='<i class="fa-solid fa-circle-exclamation mr-1"></i> 동기화 실패';
+    status.innerHTML=`<i class="fa-solid fa-circle-exclamation mr-1"></i> 에러: ${err.message}`;
   }finally{btn.disabled=false;}
 }
 
