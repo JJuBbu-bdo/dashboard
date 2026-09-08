@@ -487,7 +487,6 @@ function setText(id,v){const el=document.getElementById(id); if(el)el.textConten
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-// 원본 DB 데이터를 활용해 대시보드 메인 화면 실시간 요약 구성
 function buildSnapshotFallback(salesData, popData) {
   if (!salesData || !popData) return null;
   const salesDates = getDates(salesData);
@@ -1062,7 +1061,6 @@ function filterCurrentTable(){
   if(q) rows = rows.filter(r => r.some(c => String(c??'').toLowerCase().includes(q)));
   if(s.rank >= 0) rows = rows.slice().sort((a,b) => (rankOf(a,data)||999999) - (rankOf(b,data)||999999));
   
-  // 인기/매출 DB 탭인 경우: 1) 패키지명 열 숨김, 2) 평점을 4번째(날짜, 순위, 증감 다음)로 재정렬
   let colIndexes = data.cols.map((_, i) => i);
   if (currentView === 'sales' || currentView === 'popular') {
     colIndexes = colIndexes.filter(i => {
