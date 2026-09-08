@@ -464,12 +464,9 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
-// 내부 매칭용 키 생성 (패키지명 우선, 없거나 공백이면 앱이름으로 동일 앱 판별)
+// 내부 매칭용 복합 키 (패키지명 우선, 없으면 앱이름)
 function getGameKey(row, data) {
   const appId = gameAppId(row, data);
-  if(appId && appId !== '-' && appId.trim() !== '' && !appId.startsWith('com.')) { // 만약 잘못 들어온 경우 방어
-    // 보통 패키지명은 com.xxx 이므로 체크하되, 빈값이 아닐 때 활용
-  }
   if(appId && appId !== '-' && appId.trim() !== '') {
     return appId.trim();
   }
@@ -493,8 +490,6 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;',
 function escapeAttr(v){return escapeHtml(v);}
 
 function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
-
-// 스냅샷 시트 파싱 (D열=앱이름(인덱스 3), K열=매출 앱이름(인덱스 10) 고정 매핑)
 function readRankBlock(rows,startRow,cols,maxRows){
   const out=[];
   for(let i=0;i<maxRows;i++){
@@ -518,22 +513,19 @@ function readGenreBlock(rows,startRow,nameCol,countCol,maxRows){
 function findRowIndex(rows,matchText,fromRow=0){for(let r=fromRow;r<rows.length;r++){if((rows[r]||[]).some(cell=>String(cell??'').includes(matchText)))return r;}return -1;}
 function findColIndex(rows,rowIdx,matchText){return (rows[rowIdx]||[]).findIndex(cell=>String(cell??'').includes(matchText));}
 
+// Daily_스냅샷 시트 고정 레이아웃 인덱스 원상복구 (화면에는 앱이름이 정상 출력되도록 보장)
 function parseSnapshotSheet(data){
   const rows=data.rows;
   const dateRow=findRowIndex(rows,'기준일');
   let asOfDate='';
   if(dateRow>=0){const c=findColIndex(rows,dateRow,'기준일');asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';}
   const topRow=findRowIndex(rows,'일간 인기순위');
-  // 인기순위: 순위 B열(1), 앱이름 D열(3), 장르 F열(5), 퍼블리셔 G열(6), 증감 C열 또는 H열 등 구조에 맞춤 (앱이름은 반드시 D열인 index 3)
-  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:3,genre:5,publisher:6,change:2},10):[];
-  // 매출순위: 순위 I열(8), 앱이름 K열(10), 장르 M열(12), 퍼블리셔 N열(13), 증감 O열(14)
-  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:8,name:10,genre:12,publisher:13,change:14},10):[];
-  
+  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
+  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
   const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
-  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:3,genre:5,publisher:6},10):[];
-  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:8,name:10,change:11},10):[];
-  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:12,name:14,change:15},10):[];
-  
+  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:3,publisher:4},10):[];
+  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:7,name:8,change:9},10):[];
+  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:10,name:11,change:12},10):[];
   const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
   const popularGenre=popGenreRow>=0?readGenreBlock(rows,popGenreRow+2,1,2,30):[];
   const salesGenreRow=findRowIndex(rows,'장르 비중(매출순)',changeRow+1);
@@ -601,7 +593,7 @@ function buildSnapshotFallback(salesData, popData) {
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
-  const salesFalling = salesChanges.filter(x => x.diff < 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
+  const salesFalling = salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10);
   
   const countGenres = (list) => {
     const counts = {};
@@ -609,7 +601,7 @@ function buildSnapshotFallback(salesData, popData) {
       const g = x.genre || '기타';
       counts[g] = (counts[g] || 0) + 1;
     });
-    return Object.entries(counts).map(([genre, count}) => ({genre, count})).sort((a,b) => b.count - a.count);
+    return Object.entries(counts).map(([genre, count]) => ({genre, count})).sort((a,b) => b.count - a.count);
   };
   
   return {
@@ -645,7 +637,7 @@ function getLatestScore(gameTitle) {
   const findIn = (data) => {
     if(!data) return null;
     const s = schema(data), latest = latestDate(data);
-    const row = data.rows.find(r => r[s.date] === latest && (gameName(r, data) === gameTitle || gameAppId(r, data) === gameTitle));
+    const row = data.rows.find(r => r[s.date] === latest && (gameName(r, data) === gameTitle || gameAppId(r, data) === gameTitle || getGameKey(r, data) === gameTitle));
     return row ? scoreOf(row, data) : null;
   };
   const sc = findIn(rawStore.sales) || findIn(rawStore.popular);
@@ -832,7 +824,7 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t, clip:false,
     data:dates.map(d=>{
-      const row=data.rows.find(r=>r[s.date]===d&&(gameName(r,data)===t || gameAppId(r,data)===t));
+      const row=data.rows.find(r=>r[s.date]===d&&(gameName(r,data)===t || gameAppId(r,data)===t || getGameKey(r,data)===t));
       return row?rankOf(row,data):null;
     }),
     borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
@@ -1104,7 +1096,7 @@ function filterCurrentTable(){
   const data = rawStore[currentView];
   if(!data) return;
   const s = schema(data);
-  const q = document.getElementById('tableSearch'].value.toLowerCase().trim();
+  const q = document.getElementById('tableSearch').value.toLowerCase().trim();
   let rows = data.rows;
 
   const yVal = document.getElementById('filterYear').value;
