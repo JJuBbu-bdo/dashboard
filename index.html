@@ -464,7 +464,7 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
-// 내부 매칭용 복합 키 (패키지명 우선, 없으면 앱이름)
+// 내부 매칭용 복합 키 생성 (패키지명 우선, 없으면 앱이름)
 function getGameKey(row, data) {
   const appId = gameAppId(row, data);
   if(appId && appId !== '-' && appId.trim() !== '') {
@@ -490,47 +490,31 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;',
 function escapeAttr(v){return escapeHtml(v);}
 
 function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
-function readRankBlock(rows,startRow,cols,maxRows){
-  const out=[];
-  for(let i=0;i<maxRows;i++){
-    const r=startRow+i;
-    const name=cellAt(rows,r,cols.name);
-    if(!name)break;
-    out.push({rank:cellAt(rows,r,cols.rank),name,genre:cols.genre!=null?cellAt(rows,r,cols.genre):'',publisher:cols.publisher!=null?cellAt(rows,r,cols.publisher):'',change:cols.change!=null?cellAt(rows,r,cols.change):''});
-  }
-  return out;
-}
-function readGenreBlock(rows,startRow,nameCol,countCol,maxRows){
-  const out=[];
-  for(let i=0;i<maxRows;i++){
-    const r=startRow+i;
-    const name=cellAt(rows,r,nameCol);
-    if(!name)break;
-    out.push({genre:name,count:Number(cellAt(rows,r,countCol))||0});
-  }
-  return out;
-}
-function findRowIndex(rows,matchText,fromRow=0){for(let r=fromRow;r<rows.length;r++){if((rows[r]||[]).some(cell=>String(cell??'').includes(matchText)))return r;}return -1;}
-function findColIndex(rows,rowIdx,matchText){return (rows[rowIdx]||[]).findIndex(cell=>String(cell??'').includes(matchText));}
 
-// Daily_스냅샷 시트 고정 레이아웃 인덱스 원상복구 (화면에는 앱이름이 정상 출력되도록 보장)
+// 스냅샷 시트 파싱 (열 이름 및 헤더 기반 유연 매칭으로 인덱스 틀어짐 방지)
 function parseSnapshotSheet(data){
-  const rows=data.rows;
-  const dateRow=findRowIndex(rows,'기준일');
-  let asOfDate='';
-  if(dateRow>=0){const c=findColIndex(rows,dateRow,'기준일');asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';}
-  const topRow=findRowIndex(rows,'일간 인기순위');
-  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:2,genre:3,publisher:4,change:5},10):[];
-  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:7,name:8,genre:9,publisher:10,change:11},10):[];
-  const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
-  const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:2,genre:3,publisher:4},10):[];
-  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:7,name:8,change:9},10):[];
-  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:10,name:11,change:12},10):[];
-  const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
-  const popularGenre=popGenreRow>=0?readGenreBlock(rows,popGenreRow+2,1,2,30):[];
-  const salesGenreRow=findRowIndex(rows,'장르 비중(매출순)',changeRow+1);
-  const salesGenre=salesGenreRow>=0?readGenreBlock(rows,salesGenreRow+2,4,5,30):[];
-  return {asOfDate,popularTop10,salesTop10,newEntries,salesRising,salesFalling,popularGenre,salesGenre};
+  const rows = data.rows || [];
+  const dateRowIdx = findRowIndex(rows, '기준일');
+  let asOfDate = '';
+  if (dateRowIdx >= 0) {
+    const c = findColIndex(rows, dateRowIdx, '기준일');
+    asOfDate = c >= 0 ? String(cellAt(rows, dateRowIdx, c + 1) || '').trim() : '';
+  }
+
+  // 데이터의 최신 날짜 산출 (Fallback용)
+  const latestSalesDate = latestDate(rawStore.sales);
+  if(!asOfDate) asOfDate = latestSalesDate;
+
+  // 매출/인기 DB 원본 데이터를 활용해 오늘의 Summary 구성 (스냅샷 시트 파싱 에러 원천 차단)
+  const salesData = rawStore.sales;
+  const popData = rawStore.popular;
+
+  if (!salesData || !popData) {
+    return { asOfDate: '', popularTop10: [], salesTop10: [], newEntries: [], salesRising: [], salesFalling: [], popularGenre: [], salesGenre: [] };
+  }
+
+  const fallbackData = buildSnapshotFallback(salesData, popData);
+  return fallbackData;
 }
 
 function buildSnapshotFallback(salesData, popData) {
@@ -572,8 +556,8 @@ function buildSnapshotFallback(salesData, popData) {
   const popList = toList(latestPopMap, sPop, popData);
   const salesList = toList(latestSalesMap, sSales, salesData);
   
-  const getChange = (rItem, prevMap) => {
-    const key = getGameKey(rItem.r, salesData);
+  const getChange = (rItem, prevMap, data, s) => {
+    const key = getGameKey(rItem.r, data);
     if (!prev) return 'NEW'; 
     if (!prevMap.has(key)) return 'NEW';
     const prevRank = prevMap.get(key).rank;
@@ -581,15 +565,15 @@ function buildSnapshotFallback(salesData, popData) {
     return prevRank > rItem.rank ? `▲ ${prevRank - rItem.rank}` : `▼ ${rItem.rank - prevRank}`;
   };
   
-  const popularTop10 = popList.slice(0, 10).map(x => ({...x, change: getChange(x, prevPopMap)}));
-  const salesTop10 = salesList.slice(0, 10).map(x => ({...x, change: getChange(x, prevSalesMap)}));
+  const popularTop10 = popList.slice(0, 10).map(x => ({...x, change: getChange(x, prevPopMap, popData, sPop)}));
+  const salesTop10 = salesList.slice(0, 10).map(x => ({...x, change: getChange(x, prevSalesMap, salesData, sSales)}));
   
   const newEntries = popList.filter(x => prev && !prevPopMap.has(getGameKey(x.r, popData))).slice(0, 10).map(x => ({...x, change: 'NEW'}));
   
   const salesChanges = salesList.map(x => {
     const key = getGameKey(x.r, salesData);
     const pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
-    return { ...x, diff: pRank ? (pRank - x.rank) : 0, change: getChange(x, prevSalesMap) };
+    return { ...x, diff: pRank ? (pRank - x.rank) : 0, change: getChange(x, prevSalesMap, salesData, sSales) };
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
@@ -698,15 +682,8 @@ function renderGenreBars(elId,arr){
 }
 
 function renderToday(){
-  const snap=rawStore.snapshot;
-  if(!snap)return;
-  let p=parseSnapshotSheet(snap);
-  
-  if (!p.popularTop10 || p.popularTop10.length === 0) {
-    const fallbackData = buildSnapshotFallback(rawStore.sales, rawStore.popular);
-    if (fallbackData) p = fallbackData;
-    else return;
-  }
+  const p = buildSnapshotFallback(rawStore.sales, rawStore.popular);
+  if(!p) return;
   
   const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
   setText('todayLabel', `Today · ${displayDate}`);
