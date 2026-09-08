@@ -183,7 +183,23 @@ body{background:#080d18}
         <h2 class="font-semibold">타이틀 순위 검색</h2>
         <p class="text-xs muted mt-1">게임명을 검색해 인기·매출 순위 추이를 확인하고 비교할 수 있습니다. (검색 자동완성 지원)</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      
+      <!-- 날짜, 기간 검색 조건 및 인기/매출 토글 -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs">
+          <span class="text-slate-400 font-medium mr-1"><i class="fa-regular fa-calendar mr-1"></i>조회 기준일</span>
+          <select id="searchYear" onchange="onSearchYearChange()" class="bg-transparent text-slate-200 outline-none cursor-pointer"></select>
+          <select id="searchMonth" onchange="onSearchMonthChange()" class="bg-transparent text-slate-200 outline-none cursor-pointer"></select>
+          <select id="searchDay" onchange="renderSearchCharts()" class="bg-transparent text-slate-200 outline-none cursor-pointer"></select>
+          
+          <span class="text-slate-400 font-medium ml-3 border-l border-slate-700 pl-3">기간</span>
+          <select id="searchDuration" onchange="renderSearchCharts()" class="bg-transparent text-slate-200 outline-none cursor-pointer">
+            <option value="7">7일</option>
+            <option value="15" selected>15일</option>
+            <option value="30">30일</option>
+          </select>
+        </div>
+
         <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer">
           <input type="checkbox" id="toggleSearchPopular" checked onchange="renderSearchCharts()"> <i class="fa-solid fa-fire text-emerald-400"></i> 인기 순위
         </label>
@@ -191,6 +207,7 @@ body{background:#080d18}
           <input type="checkbox" id="toggleSearchSales" checked onchange="renderSearchCharts()"> <i class="fa-solid fa-coins text-indigo-400"></i> 매출 순위
         </label>
       </div>
+
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
       <input id="searchTitle1" list="gameNameOptions" placeholder="게임 1 검색"
@@ -287,7 +304,7 @@ body{background:#080d18}
 
     <div>
       <div class="flex items-center justify-between mb-3">
-        <h4 class="text-sm font-semibold">순위 복합 추이 (최근 30일)</h4>
+        <h4 class="text-sm font-semibold">순위 복합 추이 (최근 15일)</h4>
         <div class="flex items-center gap-3 text-[10px] font-medium">
           <span class="flex items-center gap-1 text-indigo-300"><span class="w-2 h-2 rounded-full bg-indigo-400"></span>매출</span>
           <span class="flex items-center gap-1 text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>인기</span>
@@ -297,7 +314,7 @@ body{background:#080d18}
     </div>
 
     <div>
-      <h4 class="text-sm font-semibold mb-3">순위 분석 <span class="text-[11px] muted font-normal ml-1">(최근 30일 데이터 기준)</span></h4>
+      <h4 class="text-sm font-semibold mb-3">순위 분석 <span class="text-[11px] muted font-normal ml-1">(최근 15일 데이터 기준)</span></h4>
       <div class="card rounded-xl border-slate-700/50 divide-y divide-slate-700/50 text-sm">
         <div class="flex justify-between items-center p-3.5">
           <span class="muted text-xs">최고 매출 순위</span><span class="font-bold text-indigo-300" id="detailSalesHigh">-</span>
@@ -328,7 +345,7 @@ const SHEETS = {
 
 const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
 let currentView='dashboard';
-let todayGenreDonutInst = null; // 미니 차트 인스턴스 저장용
+let todayGenreDonutInst = null; 
 
 const aliases={
   date:['날짜','일자','date','수집일','기준일'],
@@ -474,6 +491,83 @@ function parseSnapshotSheet(data){
   return {asOfDate,popularTop10,salesTop10,newEntries,salesRising,salesFalling,popularGenre,salesGenre};
 }
 
+// 스냅샷 시트가 비어있을 때 DB를 기반으로 실시간 계산 (Fallback 로직)
+function buildSnapshotFallback(salesData, popData) {
+  if (!salesData || !popData) return null;
+  const salesDates = getDates(salesData);
+  if (salesDates.length === 0) return null;
+  
+  const latest = salesDates[salesDates.length - 1];
+  const prev = salesDates.length > 1 ? salesDates[salesDates.length - 2] : null;
+  
+  const sPop = schema(popData);
+  const sSales = schema(salesData);
+  
+  const parseRankMap = (data, s, targetDate) => {
+    const map = new Map();
+    (data.rows || []).forEach(r => {
+      if (r[s.date] === targetDate) {
+        const name = gameName(r, data);
+        const rank = rankOf(r, data);
+        if(name && rank) map.set(name, { rank, r });
+      }
+    });
+    return map;
+  };
+  
+  const latestPopMap = parseRankMap(popData, sPop, latest);
+  const prevPopMap = prev ? parseRankMap(popData, sPop, prev) : new Map();
+  const latestSalesMap = parseRankMap(salesData, sSales, latest);
+  const prevSalesMap = prev ? parseRankMap(salesData, sSales, prev) : new Map();
+  
+  const toList = (map, s, data) => Array.from(map.values()).map(val => ({
+    rank: val.rank,
+    name: gameName(val.r, data),
+    genre: s.genre >= 0 ? String(val.r[s.genre]||'') : '',
+    publisher: s.publisher >= 0 ? String(val.r[s.publisher]||'') : '',
+  })).sort((a,b) => a.rank - b.rank);
+  
+  const popList = toList(latestPopMap, sPop, popData);
+  const salesList = toList(latestSalesMap, sSales, salesData);
+  
+  const getChange = (name, rank, prevMap) => {
+    if (!prev) return '-'; 
+    if (!prevMap.has(name)) return 'NEW';
+    const prevRank = prevMap.get(name).rank;
+    if (prevRank === rank) return '-';
+    return prevRank > rank ? `▲ ${prevRank - rank}` : `▼ ${rank - prevRank}`;
+  };
+  
+  const popularTop10 = popList.slice(0, 10).map(x => ({...x, change: getChange(x.name, x.rank, prevPopMap)}));
+  const salesTop10 = salesList.slice(0, 10).map(x => ({...x, change: getChange(x.name, x.rank, prevSalesMap)}));
+  
+  const newEntries = popList.filter(x => prev && !prevPopMap.has(x.name)).slice(0, 10).map(x => ({...x, change: 'NEW'}));
+  
+  const salesChanges = salesList.map(x => {
+    const pRank = prevSalesMap.has(x.name) ? prevSalesMap.get(x.name).rank : null;
+    return { ...x, diff: pRank ? (pRank - x.rank) : 0, change: getChange(x.name, x.rank, prevSalesMap) };
+  });
+  
+  const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
+  const salesFalling = salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10);
+  
+  const countGenres = (list) => {
+    const counts = {};
+    list.slice(0, 100).forEach(x => {
+      const g = x.genre || '기타';
+      counts[g] = (counts[g] || 0) + 1;
+    });
+    return Object.entries(counts).map(([genre, count]) => ({genre, count})).sort((a,b) => b.count - a.count);
+  };
+  
+  return {
+    asOfDate: latest,
+    popularTop10, salesTop10, 
+    newEntries, salesRising, salesFalling, 
+    popularGenre: countGenres(popList), salesGenre: countGenres(salesList)
+  };
+}
+
 function rankChangeBadge(change, large=false){
   const c=String(change||'').trim();
   const textClass = large ? 'text-sm' : 'text-[11px]';
@@ -527,41 +621,43 @@ function renderGenreBars(elId,arr){
 function renderToday(){
   const snap=rawStore.snapshot;
   if(!snap)return;
-  const p=parseSnapshotSheet(snap);
+  let p=parseSnapshotSheet(snap);
+  
+  // 스냅샷 데이터 없을 경우 DB 기반 자체 연산 (Fallback)
+  if (!p.popularTop10 || p.popularTop10.length === 0) {
+    const fallbackData = buildSnapshotFallback(rawStore.sales, rawStore.popular);
+    if (fallbackData) p = fallbackData;
+    else return;
+  }
   
   const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
 
-  // 1. 인기 1위 처리 및 클릭 바인딩
   const topPop=p.popularTop10[0];
   setText('todayPopularTop', topPop ? topPop.name : '-');
   setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
   document.getElementById('todayPopChange').innerHTML = topPop ? rankChangeBadge(topPop.change) : '';
   document.getElementById('cardPopular1').onclick = () => { if(topPop) openGameDetail(topPop.name); };
 
-  // 2. 매출 1위 처리 및 클릭 바인딩
   const topSales=p.salesTop10[0];
   setText('todaySalesTop', topSales ? topSales.name : '-');
   setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
   document.getElementById('todaySalesChange').innerHTML = topSales ? rankChangeBadge(topSales.change) : '';
   document.getElementById('cardSales1').onclick = () => { if(topSales) openGameDetail(topSales.name); };
 
-  // 3. 인기순위 신규 진입 (1위 단독 노출)
   const topNew = p.newEntries[0];
   setText('todayNewTop', topNew ? topNew.name : '-');
   setText('todayNewMeta', topNew ? `현재 ${topNew.rank}위 (최고 진입)` : '신규 진입 없음');
   document.getElementById('todayNewChange').innerHTML = topNew ? '<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>' : '';
   document.getElementById('cardNew1').onclick = () => { if(topNew) openGameDetail(topNew.name); };
 
-  // 4. 매출 최고 상승 (1위 단독 노출)
   const topRise = p.salesRising[0];
   setText('todayRisingTop', topRise ? topRise.name : '-');
   setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
   document.getElementById('todayRisingChange').innerHTML = topRise ? rankChangeBadge(topRise.change) : '';
   document.getElementById('cardRising1').onclick = () => { if(topRise) openGameDetail(topRise.name); };
 
-  // 5. 장르 점유 도넛 차트 렌더링
   if(todayGenreDonutInst) todayGenreDonutInst.destroy();
   const top3Genres = p.salesGenre.slice(0, 3);
   const totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0);
@@ -587,7 +683,6 @@ function renderToday(){
       }
     });
 
-    // 도넛 차트 범례 렌더링
     document.getElementById('todayGenreLegend').innerHTML = top3Genres.map((g, i) => {
       const pct = totalCount > 0 ? ((g.count / totalCount) * 100).toFixed(0) : 0;
       return `<div class="truncate flex items-center text-slate-300"><span class="w-1.5 h-1.5 inline-block rounded-full mr-1.5 shrink-0" style="background:${donutColors[i]}"></span><span class="truncate">${g.genre} ${pct}%</span></div>`;
@@ -596,7 +691,6 @@ function renderToday(){
     document.getElementById('todayGenreLegend').innerHTML = '<div class="muted">데이터 없음</div>';
   }
   
-  // 리스트 및 기타 차트 렌더링
   renderRankList('popularTop10List',p.popularTop10,{showMeta:true});
   renderRankList('salesTop10List',p.salesTop10,{showMeta:true});
   renderRankList('newEntriesList',p.newEntries,{showMeta:true});
@@ -624,18 +718,23 @@ function populateGameNameOptions(){
   if(dl) dl.innerHTML=[...names].filter(Boolean).sort().map(n=>`<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
-function top10Titles(data){
+function topNTitles(data, n=5){
   if(!data) return [];
   const s = schema(data), latest = latestDate(data);
-  return data.rows.filter(r => r[s.date] === latest).sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999)).slice(0, 10).map(r => gameName(r, data));
+  return data.rows.filter(r => r[s.date] === latest).sort((a, b) => (rankOf(a, data) || 999999) - (rankOf(b, data) || 999999)).slice(0, n).map(r => gameName(r, data));
 }
 
 let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null;
 
-function drawChartShared(canvasId, prevInst, data, titles, colors, padding=15) {
+function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, duration, padding=15) {
   if(!data) return prevInst;
   const ctx=document.getElementById(canvasId).getContext('2d');
-  const s=schema(data),dates=getDates(data);
+  const s=schema(data);
+  
+  let allDates = getDates(data);
+  if(baseDate) allDates = allDates.filter(d => d <= baseDate);
+  const dates = allDates.slice(-duration);
+
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t, clip:false,
     data:dates.map(d=>{
@@ -644,14 +743,27 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, padding=15) {
     }),
     borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
   }));
+  
   if(prevInst)prevInst.destroy();
+  
   return new Chart(ctx,{
     type:'line', data:{labels:dates,datasets},
     options:{
       layout:{padding:{top:padding}}, responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
       plugins:{legend:{labels:{color:'#cbd5e1',font:{size:10}}}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw??'-'}위`}}},
       scales:{
-        x:{grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8',maxTicksLimit:12}},
+        x:{
+          grid:{color:'rgba(51,65,85,.35)'},
+          ticks:{
+            color:'#94a3b8',
+            maxTicksLimit:12,
+            callback: function(val) {
+              const label = this.getLabelForValue(val);
+              // 날짜 포맷 (YYYY-MM-DD)에서 MM/DD로 변환
+              return label ? label.substring(5).replace('-', '/') : '';
+            }
+          }
+        },
         y:{reverse:true,min:1,suggestedMax:100,grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8'}}
       }
     }
@@ -663,13 +775,91 @@ function renderSearchCharts(){
   const t1=document.getElementById('searchTitle1').value.trim(), t2=document.getElementById('searchTitle2').value.trim();
   let titles=[t1,t2].filter(Boolean);
   const showPop=document.getElementById('toggleSearchPopular').checked, showSales=document.getElementById('toggleSearchSales').checked;
+  
+  const y = document.getElementById('searchYear')?.value;
+  const m = document.getElementById('searchMonth')?.value;
+  const d = document.getElementById('searchDay')?.value;
+  const baseDate = (y && m && d) ? `${y}-${m}-${d.padStart(2,'0')}` : null;
+  const duration = parseInt(document.getElementById('searchDuration')?.value || '15', 10);
+
   document.getElementById('searchPopularWrap').classList.toggle('hidden',!showPop);
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
   const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
-  if(showPop) searchPopularChartInst=drawChartShared('searchPopularChart',searchPopularChartInst,rawStore.popular,titles.length?titles:top10Titles(rawStore.sales),colors);
-  if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,titles.length?titles:top10Titles(rawStore.sales),colors);
+  
+  const targetTitles = titles.length ? titles : topNTitles(rawStore.sales, 5); // 기본 디폴트 5개로 축소
+
+  if(showPop) searchPopularChartInst=drawChartShared('searchPopularChart',searchPopularChartInst,rawStore.popular,targetTitles,colors, baseDate, duration);
+  if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,targetTitles,colors, baseDate, duration);
 }
 
+// 검색 화면용 날짜 필터링 드롭다운 연동
+function setupSearchDateSelect() {
+  const data = rawStore.sales || rawStore.popular;
+  if(!data) return;
+  const dates = getDates(data).reverse();
+  
+  const ySet = new Set();
+  dates.forEach(d => ySet.add(d.slice(0, 4)));
+  const years = [...ySet].sort().reverse();
+  
+  const ySel = document.getElementById('searchYear');
+  if(!ySel) return;
+  ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
+  
+  const latest = latestDate(data);
+  const targetY = latest ? latest.slice(0, 4) : years[0];
+  const targetM = latest ? latest.slice(5, 7) : '';
+  const targetD = latest;
+  
+  ySel.value = targetY;
+  updateSearchMonthSelect(targetY, targetM, targetD);
+}
+
+function updateSearchMonthSelect(year, selectedM='', selectedD='') {
+  const data = rawStore.sales || rawStore.popular;
+  const dates = getDates(data).reverse();
+  const mSet = new Set();
+  dates.forEach(d => { if(d.startsWith(year)) mSet.add(d.slice(5, 7)); });
+  const months = [...mSet].sort().reverse();
+  
+  const mSel = document.getElementById('searchMonth');
+  mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
+  
+  const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
+  mSel.value = targetM;
+  updateSearchDaySelect(year, targetM, selectedD);
+}
+
+function updateSearchDaySelect(year, month, selectedD='') {
+  const data = rawStore.sales || rawStore.popular;
+  const dates = getDates(data).reverse();
+  const filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
+  
+  const dSel = document.getElementById('searchDay');
+  dSel.innerHTML = filteredDays.map(d => {
+    const dayNum = d.slice(8, 10);
+    return `<option value="${dayNum}">${Number(dayNum)}일</option>`;
+  }).join('');
+  
+  const dOnly = selectedD ? selectedD.slice(8, 10) : '';
+  const targetD = (dOnly && filteredDays.some(d => d.endsWith(dOnly))) ? dOnly : filteredDays[0].slice(8, 10);
+  dSel.value = targetD;
+}
+
+function onSearchYearChange() {
+  const y = document.getElementById('searchYear').value;
+  updateSearchMonthSelect(y);
+  renderSearchCharts();
+}
+
+function onSearchMonthChange() {
+  const y = document.getElementById('searchYear').value;
+  const m = document.getElementById('searchMonth').value;
+  updateSearchDaySelect(y, m);
+  renderSearchCharts();
+}
+
+// DB 탭용 날짜 필터링 드롭다운 연동
 function setupDateSelect(){
   const data = rawStore[currentView];
   if(!data) return;
@@ -906,7 +1096,7 @@ function renderDatabase(view){
   document.getElementById('tableSearch').value = '';
 }
 
-function getMetricsForGame(data, gameNameTarget, recentDays=30){
+function getMetricsForGame(data, gameNameTarget, recentDays=15){ // 분석기준을 15일로 통일
   if(!data) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'' };
   const s = schema(data), dates = getDates(data), latest = dates[dates.length-1];
   let currentRank='-', change='-', genre='', pub='', validRanks=[], top10Count=0;
@@ -940,8 +1130,8 @@ function getMetricsForGame(data, gameNameTarget, recentDays=30){
 
 function openGameDetail(targetName) {
   setText('detailTitle', targetName);
-  const salesMetrics = getMetricsForGame(rawStore.sales, targetName);
-  const popMetrics = getMetricsForGame(rawStore.popular, targetName);
+  const salesMetrics = getMetricsForGame(rawStore.sales, targetName, 15);
+  const popMetrics = getMetricsForGame(rawStore.popular, targetName, 15);
   
   const finalGenre = salesMetrics.genre || popMetrics.genre || '-';
   const finalPub = salesMetrics.pub || popMetrics.pub || '-';
@@ -960,7 +1150,8 @@ function openGameDetail(targetName) {
   setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : ''));
   setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
 
-  const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-30);
+  // 차트 데이터를 최근 15일만 가져오도록 
+  const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-15);
   const getRankData = (data, d) => {
     if(!data) return null;
     const s = schema(data);
@@ -979,7 +1170,21 @@ function openGameDetail(targetName) {
     options: {
       layout: { padding: { top: 10 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw??'-'}위` } } },
-      scales: { x: { grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } }, y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } }
+      scales: { 
+        x: { 
+          grid: { display: false }, 
+          ticks: { 
+            color: '#94a3b8', 
+            maxTicksLimit: 6,
+            callback: function(val) {
+              const label = this.getLabelForValue(val);
+              // MM/DD 변환
+              return label ? label.substring(5).replace('-', '/') : '';
+            }
+          } 
+        }, 
+        y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } 
+      }
     }
   });
 
@@ -1010,7 +1215,11 @@ async function fetchAllData(){
       fetchSheetData(SHEETS.sales,1), fetchSheetData(SHEETS.popular,1), fetchSheetData(SHEETS.newReleases,1), fetchSheetData(SHEETS.snapshot,0) 
     ]);
     rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news; rawStore.snapshot=snapshot;
-    renderToday(); populateGameNameOptions();
+    
+    renderToday(); 
+    populateGameNameOptions();
+    setupSearchDateSelect(); // 검색 화면 날짜 드롭다운 초기화
+    
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
