@@ -462,7 +462,6 @@ function getDates(data){
 }
 function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 
-// 완전 안전한 스키마 기반 추출 헬퍼 함수
 function rowDate(row, data) {
   if(!row) return '';
   const s = schema(data);
@@ -472,27 +471,31 @@ function rowDate(row, data) {
 function gameName(row, data) {
   if(!row) return '-';
   const s = schema(data);
-  if(s.name >= 0 && row[s.name]) return String(row[s.name]);
-  return String(row[3] || row[2] || '-');
+  if(s.name >= 0 && row[s.name] !== undefined && row[s.name] !== '') return String(row[s.name]);
+  if(row[3] !== undefined && row[3] !== '') return String(row[3]);
+  return String(row[0] || '-');
 }
 
 function gameAppId(row, data) {
   if(!row) return '';
   const s = schema(data);
-  if(s.appId >= 0 && row[s.appId]) return String(row[s.appId]);
-  return String(row[4] || '');
+  if(s.appId >= 0 && row[s.appId] !== undefined) return String(row[s.appId]);
+  if(row[4] !== undefined) return String(row[4]);
+  return '';
 }
 
 function getGameKey(row, data) {
-  const appId = gameAppId(row, data);
-  if(appId && appId !== '-' && appId.trim() !== '') return appId.trim();
+  try {
+    const appId = gameAppId(row, data);
+    if(appId && appId !== '-' && appId.trim() !== '') return appId.trim();
+  } catch(e) {}
   return gameName(row, data);
 }
 
 function rankOf(row, data) {
   if(!row) return null;
   const s = schema(data);
-  const val = s.rank >= 0 ? row[s.rank] : row[1];
+  const val = (s.rank >= 0 && row[s.rank] !== undefined) ? row[s.rank] : row[1];
   const n = Number(String(val ?? '').replace(/[^0-9.-]/g,''));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -500,7 +503,7 @@ function rankOf(row, data) {
 function scoreOf(row, data) {
   if(!row) return '-';
   const s = schema(data);
-  const val = s.score >= 0 ? row[s.score] : (row.length > 8 ? row[8] : '');
+  const val = (s.score >= 0 && row[s.score] !== undefined) ? row[s.score] : (row.length > 8 ? row[8] : '');
   const str = String(val ?? '').trim();
   return (str && str !== '-' && str !== '0') ? str : '-';
 }
@@ -518,7 +521,6 @@ function setText(id,v){const el=document.getElementById(id); if(el)el.textConten
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-// 안전한 요약 데이터 생성기 (인덱스 에러 원천 방지)
 function buildSnapshotFallback(salesData, popData) {
   if (!salesData || !popData || !salesData.rows || !popData.rows) return null;
   const salesDates = getDates(salesData);
