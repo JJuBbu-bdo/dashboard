@@ -339,7 +339,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         <h4 class="text-sm font-semibold">평점 추이 <span class="text-[11px] font-normal text-slate-400">(최근 15일)</span></h4>
         <span class="text-amber-400 text-[10px] font-medium"><i class="fa-solid fa-star mr-1"></i>0.0 ~ 5.0</span>
       </div>
-      <div class="h-[100px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailScoreChart"></canvas></div>
+      <div class="h-[130px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailScoreChart"></canvas></div>
     </div>
 
     <!-- 순위 분석 -->
@@ -466,7 +466,6 @@ function dateValue(v){
   return m?new Date(+m[1],+m[2]-1,+m[3]).getTime():Date.parse(s)||0;
 }
 
-// 1. 날짜 추출 (A열 고정 강제화)
 function rowDate(row) {
   if(!row) return '';
   const val = String(row[0] || '').trim();
@@ -480,14 +479,12 @@ function getDates(data){
 }
 function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 
-// 2. 앱 이름 추출 (D열 고정)
 function gameName(row) {
   if(!row) return '-';
   const name = String(row[3] || '').trim();
   return name || '-';
 }
 
-// 3. 고유키 추출 (어제/오늘 100% 매칭)
 function getGameKey(row) {
   if (!row) return '-';
   const name = String(row[3] || '').trim();
@@ -818,7 +815,7 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t, clip:false,
     data:dates.map(d=>{
-      const row=data.rows.find(r=>rowDate(r)===d && getGameKey(r)===t.toLowerCase().replace(/\s+/g, ''));
+      const row=data.rows.find(r=>rowDate(r)===d && (getGameKey(r)===t.toLowerCase().replace(/\s+/g, '') || gameName(r)===t));
       return row?rankOf(row):null;
     }),
     borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
@@ -1311,11 +1308,21 @@ function openGameDetail(targetName) {
   detailScoreChartInst = new Chart(document.getElementById('detailScoreChart').getContext('2d'), {
     type: 'line', data: { labels: allDates, datasets: scoreDatasets },
     options: {
-      layout: { padding: { top: 5, bottom: 5 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 15, bottom: 5 } }, 
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `평점: ${c.raw??'-'}` } } },
       scales: { 
         x: { display: false }, 
-        y: { min: 0, max: 5, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#fbbf24', stepSize: 1 } } 
+        y: { 
+          min: 0, 
+          max: 5, 
+          grid: { color: 'rgba(51,65,85,.35)' }, 
+          ticks: { 
+            color: '#fbbf24', 
+            stepSize: 1,
+            autoSkip: false // 눈금을 강제로 모두 표시 (0, 1, 2, 3, 4, 5)
+          } 
+        } 
       }
     }
   });
