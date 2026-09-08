@@ -358,11 +358,10 @@ const SPREADSHEET_ID = '1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw';
 const SHEETS = {
   sales:'DB_매출순위',
   popular:'DB_인기순위',
-  newReleases:'월간신작DB',
-  snapshot:'Daily_스냅샷'
+  newReleases:'월간신작DB'
 };
 
-const rawStore = {sales:null,popular:null,newReleases:null,snapshot:null};
+const rawStore = {sales:null,popular:null,newReleases:null};
 let currentView='dashboard';
 let todayGenreDonutInst = null; 
 
@@ -464,7 +463,6 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
-// 내부 매칭용 복합 키 생성 (패키지명 우선, 없으면 앱이름)
 function getGameKey(row, data) {
   const appId = gameAppId(row, data);
   if(appId && appId !== '-' && appId.trim() !== '') {
@@ -489,34 +487,7 @@ function setText(id,v){const el=document.getElementById(id); if(el)el.textConten
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
 function escapeAttr(v){return escapeHtml(v);}
 
-function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
-
-// 스냅샷 시트 파싱 (열 이름 및 헤더 기반 유연 매칭으로 인덱스 틀어짐 방지)
-function parseSnapshotSheet(data){
-  const rows = data.rows || [];
-  const dateRowIdx = findRowIndex(rows, '기준일');
-  let asOfDate = '';
-  if (dateRowIdx >= 0) {
-    const c = findColIndex(rows, dateRowIdx, '기준일');
-    asOfDate = c >= 0 ? String(cellAt(rows, dateRowIdx, c + 1) || '').trim() : '';
-  }
-
-  // 데이터의 최신 날짜 산출 (Fallback용)
-  const latestSalesDate = latestDate(rawStore.sales);
-  if(!asOfDate) asOfDate = latestSalesDate;
-
-  // 매출/인기 DB 원본 데이터를 활용해 오늘의 Summary 구성 (스냅샷 시트 파싱 에러 원천 차단)
-  const salesData = rawStore.sales;
-  const popData = rawStore.popular;
-
-  if (!salesData || !popData) {
-    return { asOfDate: '', popularTop10: [], salesTop10: [], newEntries: [], salesRising: [], salesFalling: [], popularGenre: [], salesGenre: [] };
-  }
-
-  const fallbackData = buildSnapshotFallback(salesData, popData);
-  return fallbackData;
-}
-
+// 원본 DB 데이터를 활용해 대시보드 메인 화면 실시간 요약 구성
 function buildSnapshotFallback(salesData, popData) {
   if (!salesData || !popData) return null;
   const salesDates = getDates(salesData);
@@ -573,7 +544,10 @@ function buildSnapshotFallback(salesData, popData) {
   const salesChanges = salesList.map(x => {
     const key = getGameKey(x.r, salesData);
     const pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
-    return { ...x, diff: pRank ? (pRank - x.rank) : 0, change: getChange(x, prevSalesMap, salesData, sSales) };
+    const s = sSales;
+    const hIdx = s.change;
+    const changeVal = hIdx >= 0 ? Number(x.r[hIdx]) : null;
+    return { ...x, diff: changeVal !== null && changeVal !== 999 ? changeVal : (pRank ? (pRank - x.rank) : 0), change: getChange(x, prevSalesMap, salesData, sSales) };
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
@@ -945,18 +919,9 @@ function setupDateSelect(){
   const ySel = document.getElementById('filterYear');
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
-  const snap = rawStore.snapshot;
-  let todayStr = '';
-  if(snap){
-    const p = parseSnapshotSheet(snap);
-    if(p.asOfDate) todayStr = p.asOfDate;
-  }
-  if(!todayStr) todayStr = latestDate(data);
-  if(!dates.includes(todayStr)) todayStr = dates[0] || '';
-
-  const targetY = todayStr ? todayStr.slice(0, 4) : years[0];
-  const targetM = todayStr ? todayStr.slice(5, 7) : '';
-  const targetD = todayStr;
+  const targetY = dates[0] ? dates[0].slice(0, 4) : years[0];
+  const targetM = dates[0] ? dates[0].slice(5, 7) : '';
+  const targetD = dates[0];
 
   ySel.value = targetY;
   updateMonthSelect(targetY, targetM, targetD);
@@ -1032,14 +997,7 @@ function setupNewReleasesDateSelect(){
   const ySel = document.getElementById('filterYear');
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
 
-  const snap = rawStore.snapshot;
-  let todayYM = '';
-  if(snap) {
-    const p = parseSnapshotSheet(snap);
-    if(p.asOfDate) todayYM = p.asOfDate.slice(0, 7);
-  }
-  if(!todayYM) todayYM = new Date().toISOString().slice(0, 7);
-
+  const todayYM = new Date().toISOString().slice(0, 7);
   const targetY = todayYM.slice(0, 4);
   const targetM = todayYM.slice(5, 7);
 
@@ -1308,10 +1266,10 @@ async function fetchAllData(){
   status.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> 동기화 중';
   btn.disabled=true;
   try{
-    const [sales,popular,news,snapshot]=await Promise.all([
-      fetchSheetData(SHEETS.sales,1), fetchSheetData(SHEETS.popular,1), fetchSheetData(SHEETS.newReleases,1), fetchSheetData(SHEETS.snapshot,0) 
+    const [sales,popular,news]=await Promise.all([
+      fetchSheetData(SHEETS.sales,1), fetchSheetData(SHEETS.popular,1), fetchSheetData(SHEETS.newReleases,1)
     ]);
-    rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news; rawStore.snapshot=snapshot;
+    rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news;
     
     renderToday(); 
     populateGameNameOptions();
