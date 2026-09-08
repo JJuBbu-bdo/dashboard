@@ -464,9 +464,12 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 function gameName(row,data){const s=schema(data);return s.name>=0?String(row[s.name]||'-'):String(row[0]||'-');}
 function gameAppId(row,data){const s=schema(data);return s.appId>=0?String(row[s.appId]||''):'';}
 
-// 패키지명 누락(공백 또는 '-')인 경우 타이틀명(앱이름)을 동일 앱으로 판단하여 매칭
+// 내부 매칭용 키 생성 (패키지명 우선, 없거나 공백이면 앱이름으로 동일 앱 판별)
 function getGameKey(row, data) {
   const appId = gameAppId(row, data);
+  if(appId && appId !== '-' && appId.trim() !== '' && !appId.startsWith('com.')) { // 만약 잘못 들어온 경우 방어
+    // 보통 패키지명은 com.xxx 이므로 체크하되, 빈값이 아닐 때 활용
+  }
   if(appId && appId !== '-' && appId.trim() !== '') {
     return appId.trim();
   }
@@ -490,6 +493,8 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;',
 function escapeAttr(v){return escapeHtml(v);}
 
 function cellAt(rows,r,c){const row=rows[r];return row?(row[c]??''):'';}
+
+// 스냅샷 시트 파싱 (D열=앱이름(인덱스 3), K열=매출 앱이름(인덱스 10) 고정 매핑)
 function readRankBlock(rows,startRow,cols,maxRows){
   const out=[];
   for(let i=0;i<maxRows;i++){
@@ -519,12 +524,16 @@ function parseSnapshotSheet(data){
   let asOfDate='';
   if(dateRow>=0){const c=findColIndex(rows,dateRow,'기준일');asOfDate=c>=0?String(cellAt(rows,dateRow,c+1)||'').trim():'';}
   const topRow=findRowIndex(rows,'일간 인기순위');
-  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:3,genre:5,publisher:6,change:7},10):[];
-  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:9,name:10,genre:12,publisher:13,change:14},10):[];
+  // 인기순위: 순위 B열(1), 앱이름 D열(3), 장르 F열(5), 퍼블리셔 G열(6), 증감 C열 또는 H열 등 구조에 맞춤 (앱이름은 반드시 D열인 index 3)
+  const popularTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:1,name:3,genre:5,publisher:6,change:2},10):[];
+  // 매출순위: 순위 I열(8), 앱이름 K열(10), 장르 M열(12), 퍼블리셔 N열(13), 증감 O열(14)
+  const salesTop10=topRow>=0?readRankBlock(rows,topRow+2,{rank:8,name:10,genre:12,publisher:13,change:14},10):[];
+  
   const changeRow=findRowIndex(rows,'신규 진입',topRow+1);
   const newEntries=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:1,name:3,genre:5,publisher:6},10):[];
-  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:9,name:10,change:11},10):[];
-  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:13,name:14,change:15},10):[];
+  const salesRising=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:8,name:10,change:11},10):[];
+  const salesFalling=changeRow>=0?readRankBlock(rows,changeRow+2,{rank:12,name:14,change:15},10):[];
+  
   const popGenreRow=findRowIndex(rows,'장르 비중(인기순)',changeRow+1);
   const popularGenre=popGenreRow>=0?readGenreBlock(rows,popGenreRow+2,1,2,30):[];
   const salesGenreRow=findRowIndex(rows,'장르 비중(매출순)',changeRow+1);
@@ -592,7 +601,7 @@ function buildSnapshotFallback(salesData, popData) {
   });
   
   const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
-  const salesFalling = salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10);
+  const salesFalling = salesChanges.filter(x => x.diff < 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
   
   const countGenres = (list) => {
     const counts = {};
@@ -600,7 +609,7 @@ function buildSnapshotFallback(salesData, popData) {
       const g = x.genre || '기타';
       counts[g] = (counts[g] || 0) + 1;
     });
-    return Object.entries(counts).map(([genre, count]) => ({genre, count})).sort((a,b) => b.count - a.count);
+    return Object.entries(counts).map(([genre, count}) => ({genre, count})).sort((a,b) => b.count - a.count);
   };
   
   return {
@@ -1095,7 +1104,7 @@ function filterCurrentTable(){
   const data = rawStore[currentView];
   if(!data) return;
   const s = schema(data);
-  const q = document.getElementById('tableSearch').value.toLowerCase().trim();
+  const q = document.getElementById('tableSearch'].value.toLowerCase().trim();
   let rows = data.rows;
 
   const yVal = document.getElementById('filterYear').value;
@@ -1133,11 +1142,9 @@ function filterCurrentTable(){
       const colName = norm(data.cols[i]);
       return !['증감수치', 'change', '패키지명', 'appid', 'package'].includes(colName);
     });
-    // 평점 컬럼의 인덱스 찾기
     const scoreIdx = s.score;
     if (scoreIdx >= 0 && colIndexes.includes(scoreIdx)) {
       colIndexes = colIndexes.filter(i => i !== scoreIdx);
-      // [날짜, 순위, 증감] 다음인 index 3 위치에 평점 삽입
       colIndexes.splice(3, 0, scoreIdx);
     }
   } else {
