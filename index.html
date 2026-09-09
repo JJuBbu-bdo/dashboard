@@ -94,6 +94,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
     
+    <!-- 갱신 지연 감지 경고 배지 -->
     <div id="freezeWarning" class="hidden mb-4 flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-medium">
       <i class="fa-solid fa-triangle-exclamation text-lg"></i> 
       <div>
@@ -676,25 +677,39 @@ function renderToday(){
     }
   }
 
-  const bindTop = (item, prefix) => {
-    setText(`today${prefix}Top`, item ? item.name : '-');
-    document.getElementById(`today${prefix}Change`).innerHTML = item ? rankChangeBadge(item.change) : (prefix==='New'?'<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>':'');
-    const sc = item ? getLatestScore(item.name) : null;
-    document.getElementById(`today${prefix}Score`).innerHTML = sc ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${sc}` : '';
-    document.getElementById(`card${prefix}1`).onclick = () => { if(item) openGameDetail(item.name); };
-  };
+  // ==== [복구된 개별 할당 방식] ====
+  const topPop=p.popularTop10[0];
+  setText('todayPopularTop', topPop ? topPop.name : '-');
+  setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
+  document.getElementById('todayPopChange').innerHTML = topPop ? rankChangeBadge(topPop.change) : '';
+  const popScore = topPop ? getLatestScore(topPop.name) : null;
+  document.getElementById('todayPopularScore').innerHTML = popScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${popScore}` : '';
+  document.getElementById('cardPopular1').onclick = () => { if(topPop) openGameDetail(topPop.name); };
 
-  bindTop(p.popularTop10[0], 'Popular');
-  setText('todayPopularMeta', p.popularTop10[0] ? `${p.popularTop10[0].genre || '-'} · ${p.popularTop10[0].publisher || '-'}` : '-');
-  
-  bindTop(p.salesTop10[0], 'Sales');
-  setText('todaySalesMeta', p.salesTop10[0] ? `${p.salesTop10[0].genre || '-'} · ${p.salesTop10[0].publisher || '-'}` : '-');
-  
-  bindTop(p.newEntries[0], 'New');
-  setText('todayNewMeta', p.newEntries[0] ? `현재 ${p.newEntries[0].rank}위 (최고 진입)` : '신규 진입 없음');
-  
-  bindTop(p.salesRising[0], 'Rising');
-  setText('todayRisingMeta', p.salesRising[0] ? `현재 ${p.salesRising[0].rank}위` : '전일 대비');
+  const topSales=p.salesTop10[0];
+  setText('todaySalesTop', topSales ? topSales.name : '-');
+  setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
+  document.getElementById('todaySalesChange').innerHTML = topSales ? rankChangeBadge(topSales.change) : '';
+  const salesScore = topSales ? getLatestScore(topSales.name) : null;
+  document.getElementById('todaySalesScore').innerHTML = salesScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${salesScore}` : '';
+  document.getElementById('cardSales1').onclick = () => { if(topSales) openGameDetail(topSales.name); };
+
+  const topNew = p.newEntries[0];
+  setText('todayNewTop', topNew ? topNew.name : '-');
+  setText('todayNewMeta', topNew ? `현재 ${topNew.rank}위 (최고 진입)` : '신규 진입 없음');
+  document.getElementById('todayNewChange').innerHTML = topNew ? '<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>' : '';
+  const newScore = topNew ? getLatestScore(topNew.name) : null;
+  document.getElementById('todayNewScore').innerHTML = newScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${newScore}` : '';
+  document.getElementById('cardNew1').onclick = () => { if(topNew) openGameDetail(topNew.name); };
+
+  const topRise = p.salesRising[0];
+  setText('todayRisingTop', topRise ? topRise.name : '-');
+  setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
+  document.getElementById('todayRisingChange').innerHTML = topRise ? rankChangeBadge(topRise.change) : '';
+  const riseScore = topRise ? getLatestScore(topRise.name) : null;
+  document.getElementById('todayRisingScore').innerHTML = riseScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${riseScore}` : '';
+  document.getElementById('cardRising1').onclick = () => { if(topRise) openGameDetail(topRise.name); };
+  // =================================
 
   if(todayGenreDonutInst) todayGenreDonutInst.destroy();
   const top3Genres = p.salesGenre.slice(0, 3), totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0), donutColors = ['#fbbf24', '#34d399', '#818cf8'];
@@ -910,9 +925,6 @@ function updateSearchDaySelect(year, month, selectedD='') {
 function onSearchYearChange() { updateSearchMonthSelect(document.getElementById('searchYear').value); renderSearchCharts(); }
 function onSearchMonthChange() { updateSearchDaySelect(document.getElementById('searchYear').value, document.getElementById('searchMonth').value); renderSearchCharts(); }
 
-/* =========================================================================
-   DB 뷰 전용 필터 및 렌더링 (RESTORED)
-========================================================================= */
 function setupDateSelect(){
   const data = rawStore[currentView];
   if(!data) return;
@@ -1069,9 +1081,6 @@ function renderDatabase(view){
   document.getElementById('tableSearch').value = '';
 }
 
-/* =========================================================================
-   상세 분석 패널 (RESTORED)
-========================================================================= */
 function getMetricsForGame(data, gameNameTarget, recentDays=15){
   if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-', appId:'' };
   const dates = getDates(data), latest = dates[dates.length-1], targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
