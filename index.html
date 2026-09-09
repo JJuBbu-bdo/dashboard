@@ -23,6 +23,19 @@ body { background:#080d18; }
 .summary-card-hover { cursor:pointer; transition: all 0.2s ease; }
 .summary-card-hover:hover { background:rgba(30,41,59,.9); transform: translateY(-2px); border-color: rgba(99, 102, 241, 0.4); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 select option { background-color: #0f172a; color: #f1f5f9; }
+
+/* 캘린더 전용 스타일 */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background-color: rgba(71,85,105,.3); border: 1px solid rgba(71,85,105,.3); border-radius: 0.5rem; overflow: hidden; }
+.cal-header { background: rgba(30,41,59,.9); text-align: center; padding: 10px 0; font-size: 11px; font-weight: 600; color: #94a3b8; }
+.cal-cell { background: #0f172a; min-height: 120px; padding: 6px; display: flex; flex-direction: column; gap: 4px; transition: background 0.2s; }
+.cal-cell:hover { background: #1e293b; }
+.cal-cell.today { background: rgba(99, 102, 241, 0.1); box-shadow: inset 0 0 0 1px #6366f1; }
+.cal-date { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+.cal-cell.today .cal-date { color: #818cf8; }
+.cal-item { font-size: 10px; padding: 3px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; border: 1px solid transparent; }
+.cal-item.mobile { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
+.cal-item.pc { background: rgba(100, 116, 139, 0.3); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.5); }
+.cal-empty { background: rgba(15,23,42,0.5); }
 </style>
 </head>
 
@@ -52,6 +65,9 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <button class="tab active" data-view="dashboard" onclick="switchView('dashboard')">
       <i class="fa-solid fa-gauge-high mr-1.5"></i> Dashboard
     </button>
+    <button class="tab" data-view="calendar" onclick="switchView('calendar')">
+      <i class="fa-regular fa-calendar-days mr-1.5"></i> 신작 달력
+    </button>
     <button class="tab" data-view="sales" onclick="switchView('sales')">
       <i class="fa-solid fa-coins mr-1.5"></i> 매출 순위 DB
     </button>
@@ -59,7 +75,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       <i class="fa-solid fa-fire mr-1.5"></i> 인기 순위 DB
     </button>
     <button class="tab" data-view="newReleases" onclick="switchView('newReleases')">
-      <i class="fa-solid fa-rocket mr-1.5"></i> 신작 정보 DB
+      <i class="fa-solid fa-table-list mr-1.5"></i> 신작 정보 DB
     </button>
     <button class="tab" data-view="search" onclick="switchView('search')">
       <i class="fa-solid fa-magnifying-glass mr-1.5"></i> 순위 검색
@@ -68,7 +84,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 </nav>
 
 <main>
-<!-- DASHBOARD -->
+<!-- DASHBOARD VIEW -->
 <div id="view-dashboard" class="space-y-5">
   <section class="mb-5">
     <div class="flex items-end justify-between mb-3">
@@ -199,6 +215,64 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       <div id="salesGenreBars"></div>
     </div>
   </section>
+</div>
+
+<!-- CALENDAR VIEW -->
+<div id="view-calendar" class="hidden space-y-4">
+  <!-- 상단 컨트롤 및 요약 -->
+  <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button onclick="changeCalMonth(-1)" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
+      <h2 id="calMonthTitle" class="text-xl font-bold w-28 text-center">-</h2>
+      <button onclick="changeCalMonth(1)" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
+      <button onclick="resetCalMonth()" class="text-xs ml-2 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">이번 달</button>
+    </div>
+    
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div id="calStatsBadge" class="text-xs px-4 py-2 rounded-lg bg-slate-800/80 border border-slate-700 font-medium flex gap-3">
+        <span>총 신작: <strong id="calStatTotal" class="text-indigo-400">0</strong></span>
+        <span class="w-px h-4 bg-slate-600"></span>
+        <span>모바일: <strong id="calStatMobile" class="text-emerald-400">0</strong></span>
+        <span class="w-px h-4 bg-slate-600"></span>
+        <span>PC/콘솔: <strong id="calStatPC" class="text-slate-300">0</strong></span>
+      </div>
+      <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
+        <input type="checkbox" id="calMobileOnly" checked onchange="renderCalendar()" class="accent-indigo-500"> 모바일 포함 게임만 보기
+      </label>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
+    <!-- 좌측 주차별 요약 -->
+    <div class="col-span-1 space-y-3">
+      <div class="card rounded-xl p-4">
+        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-400"></i>주차별 주요 출시작</h3>
+        <div id="calWeeklySummary" class="space-y-4 max-h-[600px] overflow-y-auto scrollbar pr-1">
+          <!-- 주차별 내용 동적 렌더링 -->
+        </div>
+      </div>
+    </div>
+    
+    <!-- 우측 캘린더 그리드 -->
+    <div class="col-span-1 lg:col-span-3 card rounded-xl p-4">
+      <div class="cal-grid mb-1">
+        <div class="cal-header text-rose-400">SUN</div>
+        <div class="cal-header">MON</div>
+        <div class="cal-header">TUE</div>
+        <div class="cal-header">WED</div>
+        <div class="cal-header">THU</div>
+        <div class="cal-header">FRI</div>
+        <div class="cal-header text-sky-400">SAT</div>
+      </div>
+      <div id="calGridBody" class="cal-grid">
+        <!-- 날짜 셀 동적 렌더링 -->
+      </div>
+      <div class="flex items-center justify-end gap-3 mt-3 text-[10px] muted">
+        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500/20 border border-emerald-500/30 inline-block"></span>모바일 포함</span>
+        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-slate-700/50 border border-slate-600/50 inline-block"></span>PC/콘솔 단독</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- SEARCH VIEW -->
@@ -386,6 +460,11 @@ const rawStore = {sales:null,popular:null,newReleases:null};
 let currentView='dashboard';
 let todayGenreDonutInst = null; 
 
+// 캘린더 전용 상태 변수
+let currentCalYear = new Date().getFullYear();
+let currentCalMonth = new Date().getMonth() + 1;
+const todayStrForCal = new Date().toISOString().slice(0, 10);
+
 function cleanValue(v){
   if(v===null||v===undefined)return '';
   let val = '';
@@ -475,7 +554,6 @@ function rankOf(row) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-// 평점 읽기 완벽 차단 및 필터링
 function scoreOf(row) {
   if(!row) return '-';
   const rDate = rowDate(row);
@@ -698,7 +776,6 @@ function renderToday(){
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
 
-  // [수정] 30개 중 90%(27개) 이상 변동이 없으면 지연으로 판단하는 스마트 감지
   const freezeWarningEl = document.getElementById('freezeWarning');
   const freezeWarningText = document.getElementById('freezeWarningText');
   
@@ -808,8 +885,147 @@ function switchView(view){
   document.getElementById('view-dashboard').classList.toggle('hidden',view!=='dashboard');
   document.getElementById('view-search').classList.toggle('hidden',view!=='search');
   document.getElementById('view-database').classList.toggle('hidden',!(view==='sales'||view==='popular'||view==='newReleases'));
+  document.getElementById('view-calendar').classList.toggle('hidden',view!=='calendar');
+  
   if(view==='sales'||view==='popular'||view==='newReleases')renderDatabase(view);
   if(view==='search')renderSearchCharts();
+  if(view==='calendar')renderCalendar();
+}
+
+/* =========================================================================
+   신작 달력 로직
+========================================================================= */
+function changeCalMonth(offset) {
+  currentCalMonth += offset;
+  if (currentCalMonth > 12) { currentCalMonth = 1; currentCalYear++; }
+  else if (currentCalMonth < 1) { currentCalMonth = 12; currentCalYear--; }
+  renderCalendar();
+}
+
+function resetCalMonth() {
+  const d = new Date();
+  currentCalYear = d.getFullYear();
+  currentCalMonth = d.getMonth() + 1;
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const data = rawStore.newReleases;
+  const gridBody = document.getElementById('calGridBody');
+  const weeklySummary = document.getElementById('calWeeklySummary');
+  setText('calMonthTitle', `${currentCalYear}년 ${currentCalMonth}월`);
+  
+  if(!data || !data.rows) {
+    gridBody.innerHTML = '<div class="col-span-7 p-10 text-center muted">데이터를 불러오는 중입니다.</div>';
+    weeklySummary.innerHTML = '<div class="muted text-xs">데이터 없음</div>';
+    return;
+  }
+
+  const isMobileOnly = document.getElementById('calMobileOnly').checked;
+  const targetYM = `${currentCalYear}-${String(currentCalMonth).padStart(2, '0')}`;
+  
+  let monthGames = [];
+  data.rows.forEach(r => {
+    const rDate = String(r[0]||'').trim();
+    if(rDate.startsWith(targetYM)) {
+      const platformStr = String(r[2] || '').trim();
+      const isMobile = platformStr.replace(/\s+/g, '').includes('모바일');
+      if(isMobileOnly && !isMobile) return;
+      
+      monthGames.push({
+        date: rDate,
+        day: parseInt(rDate.split('-')[2], 10),
+        name: String(r[1]||'-').trim(),
+        platform: platformStr,
+        publisher: String(r[3]||'-').trim(),
+        type: String(r[4]||'-').trim(),
+        isMobile: isMobile
+      });
+    }
+  });
+
+  // 요약 통계 업데이트
+  const countMobile = monthGames.filter(g => g.isMobile).length;
+  setText('calStatTotal', monthGames.length);
+  setText('calStatMobile', countMobile);
+  setText('calStatPC', monthGames.length - countMobile);
+
+  // 달력 그리기 준비
+  const firstDay = new Date(currentCalYear, currentCalMonth - 1, 1).getDay(); // 0:Sun ~ 6:Sat
+  const daysInMonth = new Date(currentCalYear, currentCalMonth, 0).getDate();
+  const todayVal = new Date().toISOString().slice(0, 10);
+  
+  let gridHtml = '';
+  // 빈 셀 (시작일 이전)
+  for(let i=0; i<firstDay; i++) {
+    gridHtml += `<div class="cal-cell cal-empty"></div>`;
+  }
+  
+  // 날짜 셀
+  for(let d=1; d<=daysInMonth; d++) {
+    const dStr = `${targetYM}-${String(d).padStart(2, '0')}`;
+    const isToday = dStr === todayVal;
+    const dayGames = monthGames.filter(g => g.day === d);
+    
+    let itemsHtml = dayGames.map(g => {
+      const tooltip = `플랫폼: ${g.platform}\n퍼블리셔: ${g.publisher}\n유형: ${g.type}`;
+      const colorClass = g.isMobile ? 'mobile' : 'pc';
+      return `<div class="cal-item ${colorClass}" title="${escapeAttr(tooltip)}">${escapeHtml(g.name)}</div>`;
+    }).join('');
+
+    gridHtml += `
+      <div class="cal-cell ${isToday ? 'today' : ''}">
+        <div class="cal-date">${d}</div>
+        ${itemsHtml}
+      </div>`;
+  }
+  
+  // 빈 셀 (종료일 이후)
+  const totalCells = firstDay + daysInMonth;
+  const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for(let i=0; i<remainingCells; i++) {
+    gridHtml += `<div class="cal-cell cal-empty"></div>`;
+  }
+  gridBody.innerHTML = gridHtml;
+
+  // 주차별 요약 리스트업 구성
+  let weeklyHtml = '';
+  const weeksCount = Math.ceil(totalCells / 7);
+  
+  for(let w=0; w<weeksCount; w++) {
+    const startDay = (w * 7) - firstDay + 1;
+    const endDay = startDay + 6;
+    
+    // 이 주차에 포함되는 실제 날짜 범위 (1일 ~ daysInMonth 사이)
+    const actualStart = Math.max(1, startDay);
+    const actualEnd = Math.min(daysInMonth, endDay);
+    
+    if (actualStart <= daysInMonth && actualEnd >= 1) {
+      const weekGames = monthGames.filter(g => g.day >= actualStart && g.day <= actualEnd);
+      if (weekGames.length > 0) {
+        const wMobileCnt = weekGames.filter(g => g.isMobile).length;
+        // 주요 2~3개 게임만 추출
+        const topTitles = weekGames.slice(0, 3).map(g => `<span class="text-slate-300 font-medium">${escapeHtml(g.name)}</span>`).join(', ');
+        
+        weeklyHtml += `
+          <div class="border-b border-slate-800 pb-3 last:border-0">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-indigo-300">${w+1}주차 <span class="muted font-normal ml-1">(${currentCalMonth}/${actualStart} ~ ${currentCalMonth}/${actualEnd})</span></span>
+              <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${wMobileCnt}</span></span>
+            </div>
+            <div class="text-[11px] muted leading-relaxed">
+              주요작: ${topTitles}${weekGames.length > 3 ? ` 등` : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+  }
+  
+  if(!weeklyHtml) {
+    weeklyHtml = '<div class="muted text-xs py-4 text-center">해당 월에 필터링된 신작 일정이 없습니다.</div>';
+  }
+  weeklySummary.innerHTML = weeklyHtml;
 }
 
 function populateGameNameOptions(){
@@ -1186,241 +1402,6 @@ function filterCurrentTable(){
   setText('dbDataDate', activeDateLabel ? `선택 기준 · ${activeDateLabel}` : `전체 ${data.rows.length.toLocaleString()}행`);
 }
 
-function renderDatabase(view){
-  const data = rawStore[view];
-  if(!data) return;
-  const search = document.getElementById('tableSearch');
-  if(search) search.placeholder = view==='newReleases' ? '게임명 / 퍼블리셔 검색' : '게임명 / 장르 / 퍼블리셔 검색';
-  const title = {sales:'매출 순위 DB', popular:'인기 순위 DB', newReleases:'신작 정보 DB'}[view];
-  const desc = {sales:'일자별 Google Play 매출 순위 원본 데이터 (평점 포함)', popular:'일자별 Google Play 인기 순위 원본 데이터 (평점 포함)', newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
-  setText('dbTitle', title); setText('dbDescription', desc);
-
-  const mobileWrap = document.getElementById('mobileFilterWrap');
-  const fYear = document.getElementById('filterYear');
-  const fMonth = document.getElementById('filterMonth');
-  const fDay = document.getElementById('filterDay');
-
-  if(mobileWrap) {
-    if(view === 'newReleases') {
-      mobileWrap.classList.remove('hidden');
-      mobileWrap.classList.add('flex');
-      fDay.classList.add('hidden'); 
-      fYear.onchange = onNewReleasesYearChange;
-      fMonth.onchange = filterCurrentTable;
-      setupNewReleasesDateSelect();
-    } else {
-      mobileWrap.classList.add('hidden');
-      mobileWrap.classList.remove('flex');
-      fDay.classList.remove('hidden'); 
-      fYear.onchange = onYearChange;
-      fMonth.onchange = onMonthChange;
-      const chk = document.getElementById('mobileFilter');
-      if(chk) chk.checked = false;
-      setupDateSelect();
-    }
-  }
-
-  document.getElementById('tableSearch').value = '';
-}
-
-function getMetricsForGame(data, gameNameTarget, recentDays=15){
-  if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-', appId:'' };
-  const dates = getDates(data);
-  const latest = dates[dates.length-1];
-  let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0, appId='';
-  
-  const targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
-  const matchFn = r => rowDate(r) === latest && getGameKey(r) === targetKey;
-  
-  const latestRow = data.rows.find(matchFn);
-  if(latestRow) {
-    currentRank = rankOf(latestRow) || '-';
-    change = latestRow[2] !== undefined ? latestRow[2] : '-';
-    
-    const isNewSchema = rowDate(latestRow) >= '2026-09-08';
-    appId = isNewSchema ? String(latestRow[4] || '').trim() : '';
-    genre = isNewSchema ? (latestRow[5] || '') : (latestRow[4] || '');
-    pub = isNewSchema ? (latestRow[6] || '') : (latestRow[5] || '');
-    score = scoreOf(latestRow);
-  }
-
-  const targetDates = dates.slice(-recentDays);
-  targetDates.forEach(d => {
-    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
-    if(row){
-      const rnk = rankOf(row);
-      if(rnk){
-        validRanks.push(rnk);
-        if(rnk <= 10) top10Count++;
-        
-        const isNewSchema = rowDate(row) >= '2026-09-08';
-        if(!genre) genre = isNewSchema ? (row[5] || '') : (row[4] || '');
-        if(!pub) pub = isNewSchema ? (row[6] || '') : (row[5] || '');
-        if(!appId && isNewSchema) appId = String(row[4] || '').trim();
-        if(score === '-' || !score) score = scoreOf(row);
-      }
-    }
-  });
-
-  const high = validRanks.length ? Math.min(...validRanks) : '-';
-  const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
-  
-  if (dates.length > 1 && validRanks.length > 0) {
-    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => rowDate(r) === d && getGameKey(r) === targetKey && rankOf(r)));
-    if (firstValidDateIndex === dates.length - 1) {
-      change = 'NEW';
-    }
-  } else if (dates.length === 1 && validRanks.length > 0) {
-    change = 'NEW';
-  }
-
-  return { currentRank, change, high, avg, top10: top10Count, validRanks, genre, pub, score, appId };
-}
-
-function openGameDetail(targetName) {
-  setText('detailTitle', targetName);
-  const salesMetrics = getMetricsForGame(rawStore.sales, targetName, 15);
-  const popMetrics = getMetricsForGame(rawStore.popular, targetName, 15);
-  
-  const finalGenre = salesMetrics.genre || popMetrics.genre || '-';
-  const finalPub = salesMetrics.pub || popMetrics.pub || '-';
-  setText('detailGenrePub', `${finalGenre} · ${finalPub}`);
-
-  setText('detailSalesRank', salesMetrics.currentRank + (salesMetrics.currentRank !== '-' ? '위' : ''));
-  document.getElementById('detailSalesChange').innerHTML = rankChangeBadge(salesMetrics.change, true);
-  setText('detailPopRank', popMetrics.currentRank + (popMetrics.currentRank !== '-' ? '위' : ''));
-  document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
-
-  const finalScore = (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-';
-  setText('detailScoreBadge', finalScore);
-
-  const finalAppId = salesMetrics.appId || popMetrics.appId || '';
-  const linkEl = document.getElementById('detailPlayStoreLink');
-  
-  if (finalAppId && finalAppId !== '-' && finalAppId.includes('.')) {
-      linkEl.href = `https://play.google.com/store/apps/details?id=${encodeURIComponent(finalAppId)}`;
-      linkEl.innerHTML = `<i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 이동`;
-  } else {
-      linkEl.href = `https://play.google.com/store/search?q=${encodeURIComponent(targetName)}&c=apps`;
-      linkEl.innerHTML = `<i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 검색`;
-  }
-
-  setText('detailSalesHigh', salesMetrics.high + (salesMetrics.high !== '-' ? '위' : ''));
-  setText('detailSalesAvg', salesMetrics.avg + (salesMetrics.avg !== '-' ? '위' : ''));
-  setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : ''));
-  setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
-
-  const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-15);
-  const targetKey = targetName.toLowerCase().replace(/\s+/g, '');
-  
-  const getRankData = (data, d) => {
-    if(!data || !data.rows) return null;
-    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
-    return row ? rankOf(row) : null;
-  };
-
-  const getScoreData = (data, d) => {
-    if(!data || !data.rows) return null;
-    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
-    if(!row) return null;
-    const val = parseFloat(scoreOf(row));
-    return (!isNaN(val) && val >= 0 && val <= 5) ? val : null;
-  };
-
-  const rankDatasets = [
-    { label: '매출 순위', clip: false, data: allDates.map(d => getRankData(rawStore.sales, d)), borderColor: '#818cf8', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: .25, spanGaps: true },
-    { label: '인기 순위', clip: false, data: allDates.map(d => getRankData(rawStore.popular, d)), borderColor: '#34d399', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4,4], pointRadius: 2, tension: .25, spanGaps: true }
-  ];
-
-  if(detailChartInst) detailChartInst.destroy();
-  detailChartInst = new Chart(document.getElementById('detailChart').getContext('2d'), {
-    type: 'line', data: { labels: allDates, datasets: rankDatasets },
-    options: {
-      layout: { padding: { top: 10 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw??'-'}위` } } },
-      scales: { 
-        x: { 
-          grid: { display: false }, 
-          ticks: { 
-            color: '#94a3b8', 
-            maxTicksLimit: 6,
-            callback: function(val) {
-              const label = this.getLabelForValue(val);
-              return label ? label.substring(5).replace('-', '/') : '';
-            }
-          } 
-        }, 
-        y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } 
-      }
-    }
-  });
-
-  const scoreDatasets = [
-    { 
-      label: '통합 평점', 
-      clip: false, 
-      data: allDates.map(d => getScoreData(rawStore.sales, d) || getScoreData(rawStore.popular, d) || null), 
-      borderColor: '#fbbf24', 
-      backgroundColor: 'rgba(251, 191, 36, 0.1)', 
-      borderWidth: 2, 
-      pointRadius: 2, 
-      tension: 0, 
-      spanGaps: true,
-      fill: true
-    }
-  ];
-
-  if(detailScoreChartInst) detailScoreChartInst.destroy();
-  detailScoreChartInst = new Chart(document.getElementById('detailScoreChart').getContext('2d'), {
-    type: 'line', data: { labels: allDates, datasets: scoreDatasets },
-    options: {
-      layout: { padding: { top: 15, bottom: 5 } }, 
-      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `평점: ${c.raw??'-'}` } } },
-      scales: { 
-        x: { 
-          display: true, 
-          grid: { display: false },
-          ticks: {
-            color: '#94a3b8',
-            maxTicksLimit: 6,
-            callback: function(val) {
-              const label = this.getLabelForValue(val);
-              return label ? label.substring(5).replace('-', '/') : '';
-            }
-          }
-        }, 
-        y: { 
-          min: 0, 
-          max: 5, 
-          grid: { color: 'rgba(51,65,85,.35)' }, 
-          ticks: { 
-            color: '#fbbf24', 
-            stepSize: 1,
-            autoSkip: false 
-          } 
-        } 
-      }
-    }
-  });
-
-  const overlay = document.getElementById('detailOverlay');
-  const panel = document.getElementById('detailPanel');
-  overlay.classList.remove('hidden');
-  setTimeout(() => {
-    overlay.classList.remove('opacity-0');
-    panel.classList.remove('translate-x-full');
-  }, 10);
-}
-
-function closeGameDetail() {
-  const overlay = document.getElementById('detailOverlay');
-  const panel = document.getElementById('detailPanel');
-  panel.classList.add('translate-x-full');
-  overlay.classList.add('opacity-0');
-  setTimeout(() => overlay.classList.add('hidden'), 300);
-}
-
 async function fetchAllData(){
   const status=document.getElementById('syncStatus'),btn=document.getElementById('refreshBtn');
   status.className='text-xs px-3 py-1.5 rounded-full bg-indigo-950 text-indigo-300';
@@ -1434,12 +1415,18 @@ async function fetchAllData(){
     ]);
     rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news;
     
+    // 현재 날짜 기준으로 캘린더 초기 세팅
+    const d = new Date();
+    currentCalYear = d.getFullYear();
+    currentCalMonth = d.getMonth() + 1;
+
     renderToday(); 
     populateGameNameOptions();
     setupSearchDateSelect();
     
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
+    if(currentView==='calendar')renderCalendar();
     
     document.getElementById('view-dashboard').classList.remove('hidden');
     
