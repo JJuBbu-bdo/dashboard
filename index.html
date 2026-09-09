@@ -37,7 +37,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 .cal-item.pc { background: rgba(148, 163, 184, 0.25); color: #f1f5f9; border-color: rgba(148, 163, 184, 0.4); }
 .cal-empty { background: rgba(15,23,42,0.5); }
 
-/* A안 커스텀 툴팁 스타일 (잘림 현상 방지 및 위치 최적화) */
+/* A안 커스텀 툴팁 스타일 */
 .custom-tooltip-wrap { position: relative; display: inline-block; }
 .custom-tooltip-content {
   visibility: hidden; position: absolute; z-index: 100; left: 0; top: 110%;
@@ -258,7 +258,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <div class="col-span-1 space-y-3">
       <div class="card rounded-xl p-4">
         <h3 class="text-sm font-semibold mb-3 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-400"></i>주차별 주요 출시작</h3>
-        <!-- 스크롤바 버그 해결 (overflow 제거 및 높이 제약 해제) -->
         <div id="calWeeklySummary" class="space-y-4 pr-1"></div>
       </div>
     </div>
@@ -790,7 +789,10 @@ function renderCalendar() {
       const platformStr = String(r[2] || '').trim();
       const typeStr = String(r[4] || '').trim();
       const isMobile = platformStr.replace(/\s+/g, '').includes('모바일');
-      const isOfficial = typeStr.replace(/\s+/g, '').includes('정식출시');
+      const typeClean = typeStr.replace(/\s+/g, '').toLowerCase();
+      const isOfficial = typeClean.includes('정식출시');
+      const isTest = typeClean.includes('테스트');
+      const isEarly = typeClean.includes('얼리억세스');
       
       if(isMobileOnly && !isMobile) return;
       if(isOfficialOnly && !isOfficial) return;
@@ -803,7 +805,9 @@ function renderCalendar() {
         publisher: String(r[3]||'-').trim(), 
         type: typeStr, 
         isMobile: isMobile,
-        isOfficial: isOfficial
+        isOfficial: isOfficial,
+        isTest: isTest,
+        isEarly: isEarly
       });
     }
   });
@@ -821,8 +825,10 @@ function renderCalendar() {
   for(let d=1; d<=daysInMonth; d++) {
     const isToday = `${targetYM}-${String(d).padStart(2, '0')}` === todayVal;
     let itemsHtml = monthGames.filter(g => g.day === d).map(g => {
-      const typeBadge = !g.isOfficial ? `<span class="opacity-70 text-[9px] mr-0.5">[테스트]</span>` : '';
-      return `<div class="cal-item ${g.isMobile ? 'mobile' : 'pc'}" title="${escapeAttr(`플랫폼: ${g.platform}\n유형: ${g.type}\n퍼블리셔: ${g.publisher}`)}">${typeBadge}${escapeHtml(g.name)}</div>`;
+      let badge = '';
+      if (g.isTest) badge = `<span class="px-1 py-0.5 rounded text-[9px] bg-purple-500/20 text-purple-300 mr-1 font-bold">TEST</span>`;
+      else if (g.isEarly) badge = `<span class="px-1 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 mr-1 font-bold">EARLY</span>`;
+      return `<div class="cal-item ${g.isMobile ? 'mobile' : 'pc'}" title="${escapeAttr(`플랫폼: ${g.platform}\n유형: ${g.type}\n퍼블리셔: ${g.publisher}`)}">${badge}${escapeHtml(g.name)}</div>`;
     }).join('');
     gridHtml += `<div class="cal-cell ${isToday ? 'today' : ''}"><div class="cal-date">${d}</div>${itemsHtml}</div>`;
   }
@@ -840,14 +846,21 @@ function renderCalendar() {
       const weekGames = monthGames.filter(g => g.day >= actualStart && g.day <= actualEnd);
       if (weekGames.length > 0) {
         let chipsHtml = weekGames.slice(0, 3).map(g => {
-          const typePrefix = !g.isOfficial ? `<span class="opacity-70 text-[9px] mr-0.5">[테스트]</span>` : '';
+          let badge = '';
+          if (g.isTest) badge = `<span class="px-1 py-0.5 rounded text-[8px] bg-purple-500/20 text-purple-300 mr-1 font-bold">TEST</span>`;
+          else if (g.isEarly) badge = `<span class="px-1 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-300 mr-1 font-bold">EARLY</span>`;
           const colorClass = g.isMobile ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700/50 text-slate-300 border-slate-600/50';
-          return `<span class="inline-block px-2 py-0.5 rounded border ${colorClass} text-[10px] mr-1 mb-1 truncate max-w-[150px]" title="${escapeAttr(g.name)}">${typePrefix}${escapeHtml(g.name)}</span>`;
+          return `<span class="inline-block px-2 py-0.5 rounded border ${colorClass} text-[10px] mr-1 mb-1 truncate max-w-[150px]" title="${escapeAttr(g.name)}">${badge}${escapeHtml(g.name)}</span>`;
         }).join('');
 
         let moreHtml = '';
         if (weekGames.length > 3) {
-          const remainingList = weekGames.slice(3).map(g => `${!g.isOfficial ? '[테스트] ' : ''}${g.name} (${g.platform})`).join('<br>');
+          const remainingList = weekGames.slice(3).map(g => {
+            let b = '';
+            if (g.isTest) b = '[TEST] ';
+            else if (g.isEarly) b = '[EARLY] ';
+            return `${b}${g.name} (${g.platform})`;
+          }).join('<br>');
           moreHtml = `
             <div class="custom-tooltip-wrap inline-block">
               <span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] cursor-help mb-1">+${weekGames.length-3}종 더보기</span>
