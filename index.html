@@ -944,24 +944,20 @@ function renderCalendar() {
     }
   });
 
-  // 요약 통계 업데이트
   const countMobile = monthGames.filter(g => g.isMobile).length;
   setText('calStatTotal', monthGames.length);
   setText('calStatMobile', countMobile);
   setText('calStatPC', monthGames.length - countMobile);
 
-  // 달력 그리기 준비
-  const firstDay = new Date(currentCalYear, currentCalMonth - 1, 1).getDay(); // 0:Sun ~ 6:Sat
+  const firstDay = new Date(currentCalYear, currentCalMonth - 1, 1).getDay();
   const daysInMonth = new Date(currentCalYear, currentCalMonth, 0).getDate();
   const todayVal = new Date().toISOString().slice(0, 10);
   
   let gridHtml = '';
-  // 빈 셀 (시작일 이전)
   for(let i=0; i<firstDay; i++) {
     gridHtml += `<div class="cal-cell cal-empty"></div>`;
   }
   
-  // 날짜 셀
   for(let d=1; d<=daysInMonth; d++) {
     const dStr = `${targetYM}-${String(d).padStart(2, '0')}`;
     const isToday = dStr === todayVal;
@@ -980,7 +976,6 @@ function renderCalendar() {
       </div>`;
   }
   
-  // 빈 셀 (종료일 이후)
   const totalCells = firstDay + daysInMonth;
   const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
   for(let i=0; i<remainingCells; i++) {
@@ -988,7 +983,6 @@ function renderCalendar() {
   }
   gridBody.innerHTML = gridHtml;
 
-  // 주차별 요약 리스트업 구성
   let weeklyHtml = '';
   const weeksCount = Math.ceil(totalCells / 7);
   
@@ -996,7 +990,6 @@ function renderCalendar() {
     const startDay = (w * 7) - firstDay + 1;
     const endDay = startDay + 6;
     
-    // 이 주차에 포함되는 실제 날짜 범위 (1일 ~ daysInMonth 사이)
     const actualStart = Math.max(1, startDay);
     const actualEnd = Math.min(daysInMonth, endDay);
     
@@ -1004,7 +997,6 @@ function renderCalendar() {
       const weekGames = monthGames.filter(g => g.day >= actualStart && g.day <= actualEnd);
       if (weekGames.length > 0) {
         const wMobileCnt = weekGames.filter(g => g.isMobile).length;
-        // 주요 2~3개 게임만 추출
         const topTitles = weekGames.slice(0, 3).map(g => `<span class="text-slate-300 font-medium">${escapeHtml(g.name)}</span>`).join(', ');
         
         weeklyHtml += `
@@ -1188,6 +1180,9 @@ function onSearchMonthChange() {
   renderSearchCharts();
 }
 
+/* =========================================================================
+   DB 뷰 전용 필터 및 렌더링 로직 (RESTORED)
+========================================================================= */
 function setupDateSelect(){
   const data = rawStore[currentView];
   if(!data) return;
@@ -1400,6 +1395,244 @@ function filterCurrentTable(){
   setText('tableRowCount', `${rows.length.toLocaleString()}행`);
   const activeDateLabel = currentView === 'newReleases' ? `${yVal}년 ${Number(mVal)}월` : document.getElementById('filterDay').value;
   setText('dbDataDate', activeDateLabel ? `선택 기준 · ${activeDateLabel}` : `전체 ${data.rows.length.toLocaleString()}행`);
+}
+
+function renderDatabase(view){
+  const data = rawStore[view];
+  if(!data) return;
+  const search = document.getElementById('tableSearch');
+  if(search) search.placeholder = view==='newReleases' ? '게임명 / 퍼블리셔 검색' : '게임명 / 장르 / 퍼블리셔 검색';
+  const title = {sales:'매출 순위 DB', popular:'인기 순위 DB', newReleases:'신작 정보 DB'}[view];
+  const desc = {sales:'일자별 Google Play 매출 순위 원본 데이터 (평점 포함)', popular:'일자별 Google Play 인기 순위 원본 데이터 (평점 포함)', newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
+  setText('dbTitle', title); setText('dbDescription', desc);
+
+  const mobileWrap = document.getElementById('mobileFilterWrap');
+  const fYear = document.getElementById('filterYear');
+  const fMonth = document.getElementById('filterMonth');
+  const fDay = document.getElementById('filterDay');
+
+  if(mobileWrap) {
+    if(view === 'newReleases') {
+      mobileWrap.classList.remove('hidden');
+      mobileWrap.classList.add('flex');
+      fDay.classList.add('hidden'); 
+      fYear.onchange = onNewReleasesYearChange;
+      fMonth.onchange = filterCurrentTable;
+      setupNewReleasesDateSelect();
+    } else {
+      mobileWrap.classList.add('hidden');
+      mobileWrap.classList.remove('flex');
+      fDay.classList.remove('hidden'); 
+      fYear.onchange = onYearChange;
+      fMonth.onchange = onMonthChange;
+      const chk = document.getElementById('mobileFilter');
+      if(chk) chk.checked = false;
+      setupDateSelect();
+    }
+  }
+
+  document.getElementById('tableSearch').value = '';
+}
+
+/* =========================================================================
+   상세 분석 패널 (RESTORED)
+========================================================================= */
+function getMetricsForGame(data, gameNameTarget, recentDays=15){
+  if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-', appId:'' };
+  const dates = getDates(data);
+  const latest = dates[dates.length-1];
+  let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0, appId='';
+  
+  const targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
+  const matchFn = r => rowDate(r) === latest && getGameKey(r) === targetKey;
+  
+  const latestRow = data.rows.find(matchFn);
+  if(latestRow) {
+    currentRank = rankOf(latestRow) || '-';
+    change = latestRow[2] !== undefined ? latestRow[2] : '-';
+    
+    const isNewSchema = rowDate(latestRow) >= '2026-09-08';
+    appId = isNewSchema ? String(latestRow[4] || '').trim() : '';
+    genre = isNewSchema ? (latestRow[5] || '') : (latestRow[4] || '');
+    pub = isNewSchema ? (latestRow[6] || '') : (latestRow[5] || '');
+    score = scoreOf(latestRow);
+  }
+
+  const targetDates = dates.slice(-recentDays);
+  targetDates.forEach(d => {
+    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
+    if(row){
+      const rnk = rankOf(row);
+      if(rnk){
+        validRanks.push(rnk);
+        if(rnk <= 10) top10Count++;
+        
+        const isNewSchema = rowDate(row) >= '2026-09-08';
+        if(!genre) genre = isNewSchema ? (row[5] || '') : (row[4] || '');
+        if(!pub) pub = isNewSchema ? (row[6] || '') : (row[5] || '');
+        if(!appId && isNewSchema) appId = String(row[4] || '').trim();
+        if(score === '-' || !score) score = scoreOf(row);
+      }
+    }
+  });
+
+  const high = validRanks.length ? Math.min(...validRanks) : '-';
+  const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
+  
+  if (dates.length > 1 && validRanks.length > 0) {
+    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => rowDate(r) === d && getGameKey(r) === targetKey && rankOf(r)));
+    if (firstValidDateIndex === dates.length - 1) {
+      change = 'NEW';
+    }
+  } else if (dates.length === 1 && validRanks.length > 0) {
+    change = 'NEW';
+  }
+
+  return { currentRank, change, high, avg, top10: top10Count, validRanks, genre, pub, score, appId };
+}
+
+function openGameDetail(targetName) {
+  setText('detailTitle', targetName);
+  const salesMetrics = getMetricsForGame(rawStore.sales, targetName, 15);
+  const popMetrics = getMetricsForGame(rawStore.popular, targetName, 15);
+  
+  const finalGenre = salesMetrics.genre || popMetrics.genre || '-';
+  const finalPub = salesMetrics.pub || popMetrics.pub || '-';
+  setText('detailGenrePub', `${finalGenre} · ${finalPub}`);
+
+  setText('detailSalesRank', salesMetrics.currentRank + (salesMetrics.currentRank !== '-' ? '위' : ''));
+  document.getElementById('detailSalesChange').innerHTML = rankChangeBadge(salesMetrics.change, true);
+  setText('detailPopRank', popMetrics.currentRank + (popMetrics.currentRank !== '-' ? '위' : ''));
+  document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
+
+  const finalScore = (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-';
+  setText('detailScoreBadge', finalScore);
+
+  const finalAppId = salesMetrics.appId || popMetrics.appId || '';
+  const linkEl = document.getElementById('detailPlayStoreLink');
+  
+  if (finalAppId && finalAppId !== '-' && finalAppId.includes('.')) {
+      linkEl.href = `https://play.google.com/store/apps/details?id=${encodeURIComponent(finalAppId)}`;
+      linkEl.innerHTML = `<i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 이동`;
+  } else {
+      linkEl.href = `https://play.google.com/store/search?q=${encodeURIComponent(targetName)}&c=apps`;
+      linkEl.innerHTML = `<i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 검색`;
+  }
+
+  setText('detailSalesHigh', salesMetrics.high + (salesMetrics.high !== '-' ? '위' : ''));
+  setText('detailSalesAvg', salesMetrics.avg + (salesMetrics.avg !== '-' ? '위' : ''));
+  setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : ''));
+  setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
+
+  const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-15);
+  const targetKey = targetName.toLowerCase().replace(/\s+/g, '');
+  
+  const getRankData = (data, d) => {
+    if(!data || !data.rows) return null;
+    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
+    return row ? rankOf(row) : null;
+  };
+
+  const getScoreData = (data, d) => {
+    if(!data || !data.rows) return null;
+    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
+    if(!row) return null;
+    const val = parseFloat(scoreOf(row));
+    return (!isNaN(val) && val >= 0 && val <= 5) ? val : null;
+  };
+
+  const rankDatasets = [
+    { label: '매출 순위', clip: false, data: allDates.map(d => getRankData(rawStore.sales, d)), borderColor: '#818cf8', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: .25, spanGaps: true },
+    { label: '인기 순위', clip: false, data: allDates.map(d => getRankData(rawStore.popular, d)), borderColor: '#34d399', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4,4], pointRadius: 2, tension: .25, spanGaps: true }
+  ];
+
+  if(detailChartInst) detailChartInst.destroy();
+  detailChartInst = new Chart(document.getElementById('detailChart').getContext('2d'), {
+    type: 'line', data: { labels: allDates, datasets: rankDatasets },
+    options: {
+      layout: { padding: { top: 10 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw??'-'}위` } } },
+      scales: { 
+        x: { 
+          grid: { display: false }, 
+          ticks: { 
+            color: '#94a3b8', 
+            maxTicksLimit: 6,
+            callback: function(val) {
+              const label = this.getLabelForValue(val);
+              return label ? label.substring(5).replace('-', '/') : '';
+            }
+          } 
+        }, 
+        y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } 
+      }
+    }
+  });
+
+  const scoreDatasets = [
+    { 
+      label: '통합 평점', 
+      clip: false, 
+      data: allDates.map(d => getScoreData(rawStore.sales, d) || getScoreData(rawStore.popular, d) || null), 
+      borderColor: '#fbbf24', 
+      backgroundColor: 'rgba(251, 191, 36, 0.1)', 
+      borderWidth: 2, 
+      pointRadius: 2, 
+      tension: 0, 
+      spanGaps: true,
+      fill: true
+    }
+  ];
+
+  if(detailScoreChartInst) detailScoreChartInst.destroy();
+  detailScoreChartInst = new Chart(document.getElementById('detailScoreChart').getContext('2d'), {
+    type: 'line', data: { labels: allDates, datasets: scoreDatasets },
+    options: {
+      layout: { padding: { top: 15, bottom: 5 } }, 
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `평점: ${c.raw??'-'}` } } },
+      scales: { 
+        x: { 
+          display: true, 
+          grid: { display: false },
+          ticks: {
+            color: '#94a3b8',
+            maxTicksLimit: 6,
+            callback: function(val) {
+              const label = this.getLabelForValue(val);
+              return label ? label.substring(5).replace('-', '/') : '';
+            }
+          }
+        }, 
+        y: { 
+          min: 0, 
+          max: 5, 
+          grid: { color: 'rgba(51,65,85,.35)' }, 
+          ticks: { 
+            color: '#fbbf24', 
+            stepSize: 1,
+            autoSkip: false 
+          } 
+        } 
+      }
+    }
+  });
+
+  const overlay = document.getElementById('detailOverlay');
+  const panel = document.getElementById('detailPanel');
+  overlay.classList.remove('hidden');
+  setTimeout(() => {
+    overlay.classList.remove('opacity-0');
+    panel.classList.remove('translate-x-full');
+  }, 10);
+}
+
+function closeGameDetail() {
+  const overlay = document.getElementById('detailOverlay');
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('translate-x-full');
+  overlay.classList.add('opacity-0');
+  setTimeout(() => overlay.classList.add('hidden'), 300);
 }
 
 async function fetchAllData(){
