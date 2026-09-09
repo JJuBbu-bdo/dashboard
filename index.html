@@ -529,30 +529,30 @@ function getGameKey(row) {
   return name ? name.toLowerCase().replace(/\s+/g, '') : '-'; 
 }
 
-function getAppIdForGame(gameTitle) {
+function getIconUrlFromRow(row) {
+  if (!row) return '';
+  // J열(인덱스 9)에 저장된 아이콘url 가져오기 (따옴표 제거)
+  let url = String(row[9] || '').trim();
+  if (url.startsWith("'")) url = url.substring(1);
+  if (url && url !== '-' && url.startsWith('http')) return url;
+  return '';
+}
+
+function getIconUrlForGame(gameTitle) {
   const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
-  const findAppIdIn = (data) => {
+  const findIn = (data) => {
     if (!data || !data.rows) return '';
-    // 최신 날짜부터 역순으로 탐색하여 패키지명(r[4])이 존재하는지 확인
     const dates = getDates(data).reverse();
     for (let d of dates) {
       const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
       if (row) {
-        const id = gameAppId(row);
-        if (id && id !== '-' && id.includes('.')) return id;
+        const u = getIconUrlFromRow(row);
+        if (u) return u;
       }
     }
     return '';
   };
-  return findAppIdIn(rawStore.sales) || findAppIdIn(rawStore.popular) || '';
-}
-
-function getAppIconUrl(gameTitle, appId = '') {
-  const resolvedId = appId || getAppIdForGame(gameTitle);
-  if (resolvedId && resolvedId !== '-' && resolvedId.includes('.')) {
-    return `https://play-lh.googleusercontent.com/${resolvedId}=w128-h128-rw`;
-  }
-  return '';
+  return findIn(rawStore.sales) || findIn(rawStore.popular) || '';
 }
 
 function rankOf(row) {
@@ -609,6 +609,7 @@ function buildSnapshotFallback(salesData, popData) {
       genre: String(isNewSchema ? r[5] : r[4] || ''),
       publisher: String(isNewSchema ? r[6] : r[5] || ''),
       score: scoreOf(r),
+      iconUrl: getIconUrlFromRow(r),
       appId: isNewSchema ? String(r[4] || '').trim() : ''
     };
   }).sort((a,b) => a.rank - b.rank);
@@ -683,7 +684,7 @@ function renderRankList(elId, items, {showMeta=true}={}) {
     let displayChange = it.change;
     if (elId === 'newEntriesList' && (!displayChange || displayChange === '-' || displayChange === '0')) displayChange = 'NEW';
     
-    const iconUrl = getAppIconUrl(it.name, it.appId);
+    const iconUrl = it.iconUrl || getIconUrlForGame(it.name);
     const iconHtml = iconUrl 
       ? `<img src="${iconUrl}" class="w-6 h-6 rounded-md object-cover bg-slate-800 shrink-0" alt="" onerror="this.style.display='none'">` 
       : '';
@@ -763,7 +764,7 @@ function renderToday(){
     const scoreVal = getLatestScore(item.name);
     if(scoreEl) scoreEl.innerHTML = scoreVal ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${scoreVal}` : '';
     
-    const iconUrl = getAppIconUrl(item.name, item.appId);
+    const iconUrl = item.iconUrl || getIconUrlForGame(item.name);
     if (iconEl) {
       if (iconUrl) {
         iconEl.src = iconUrl;
@@ -1146,7 +1147,7 @@ function filterCurrentTable(){
   }
   
   if (currentView === 'sales' || currentView === 'popular') {
-    const headers = ['날짜', '순위', '증감', '평점', '앱이름', '장르', '개발사(퍼블리셔)'];
+    const headers = ['날짜', '순위', '증감', '앱이름', '패키지명', '장르', '개발사(퍼블리셔)'];
     document.getElementById('tableHead').innerHTML = '<tr>' + headers.map(h => `<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${h}</th>`).join('') + '</tr>';
     document.getElementById('tableBody').innerHTML = rows.length ? rows.map(r => {
       const gName = gameName(r), rDate = rowDate(r), rRank = rankOf(r) || '-', rChange = String(r[2] || '-'), rScore = scoreOf(r);
@@ -1246,18 +1247,18 @@ function openGameDetail(targetName) {
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
   setText('detailScoreBadge', (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-');
 
-  const finalAppId = salesMetrics.appId || popMetrics.appId || '';
-  const iconUrl = getAppIconUrl(targetName, finalAppId);
+  const finalIconUrl = getIconUrlForGame(targetName);
   const iconEl = document.getElementById('detailAppIcon');
   if (iconEl) {
-    if (iconUrl) {
-      iconEl.src = iconUrl;
+    if (finalIconUrl) {
+      iconEl.src = finalIconUrl;
       iconEl.classList.remove('hidden');
     } else {
       iconEl.classList.add('hidden');
     }
   }
 
+  const finalAppId = salesMetrics.appId || popMetrics.appId || '';
   const linkEl = document.getElementById('detailPlayStoreLink');
   if (finalAppId && finalAppId !== '-' && finalAppId.includes('.')) {
       linkEl.href = `https://play.google.com/store/apps/details?id=${encodeURIComponent(finalAppId)}`;
