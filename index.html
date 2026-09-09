@@ -77,6 +77,16 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       </div>
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
+    
+    <!-- 갱신 지연 감지 경고 배지 -->
+    <div id="freezeWarning" class="hidden mb-4 flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-medium">
+      <i class="fa-solid fa-triangle-exclamation text-lg"></i> 
+      <div>
+        <strong id="freezeWarningText" class="font-bold">⚠️ 구글 매출 순위 갱신 지연 감지됨</strong> 
+        <span class="text-xs ml-1 opacity-80">(스토어 내부 갱신 지연으로 인해 전일과 완벽히 동일한 순위가 유지되고 있습니다.)</span>
+      </div>
+    </div>
+
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
       <div id="cardPopular1" class="card rounded-xl p-4 relative overflow-hidden summary-card-hover">
         <i class="fa-solid fa-fire text-emerald-400/10 text-4xl absolute -bottom-2 -right-2"></i>
@@ -465,7 +475,7 @@ function rankOf(row) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-// 9월 8일 이전 데이터의 평점 읽기 완벽 차단 및 필터링
+// 평점 읽기 완벽 차단 및 필터링
 function scoreOf(row) {
   if(!row) return '-';
   const rDate = rowDate(row);
@@ -544,15 +554,19 @@ function buildSnapshotFallback(salesData, popData) {
     return prevRank > itemRank ? `▲ ${prevRank - itemRank}` : `▼ ${itemRank - prevRank}`;
   };
   
-  const popularTop10 = popList.slice(0, 10).map(x => {
+  // 안정성을 위해 TOP 30개까지 추출하여 프리징 검증에 사용
+  const popularTop30 = popList.slice(0, 30).map(x => {
     const key = x.name.toLowerCase().replace(/\s+/g, '');
     return {...x, change: getChange(key, x.rank, prevPopMap)};
   });
   
-  const salesTop10 = salesList.slice(0, 10).map(x => {
+  const salesTop30 = salesList.slice(0, 30).map(x => {
     const key = x.name.toLowerCase().replace(/\s+/g, '');
     return {...x, change: getChange(key, x.rank, prevSalesMap)};
   });
+  
+  const popularTop10 = popularTop30.slice(0, 10);
+  const salesTop10 = salesTop30.slice(0, 10);
   
   const newEntries = popList.filter(x => {
     const key = x.name.toLowerCase().replace(/\s+/g, '');
@@ -583,7 +597,8 @@ function buildSnapshotFallback(salesData, popData) {
   
   return {
     asOfDate: latest,
-    popularTop10, salesTop10, 
+    popularTop10, salesTop10,
+    popularTop30, salesTop30, 
     newEntries, salesRising, salesFalling, 
     popularGenre: countGenres(popList), salesGenre: countGenres(salesList)
   };
@@ -683,6 +698,27 @@ function renderToday(){
   const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
+
+  // [핵심] 상위 30개를 기준으로 한 강력한 지연(프리징) 감지 및 동적 텍스트 로직
+  const freezeWarningEl = document.getElementById('freezeWarning');
+  const freezeWarningText = document.getElementById('freezeWarningText');
+  
+  if (freezeWarningEl && freezeWarningText) {
+    const isPopFrozen = p.popularTop30.length > 0 && p.popularTop30.every(item => item.change === '-' || item.change === '0' || item.change.includes('유지'));
+    const isSalesFrozen = p.salesTop30.length > 0 && p.salesTop30.every(item => item.change === '-' || item.change === '0' || item.change.includes('유지'));
+
+    if (isPopFrozen || isSalesFrozen) {
+      freezeWarningEl.classList.remove('hidden');
+      let targetStr = "";
+      if (isPopFrozen && isSalesFrozen) targetStr = "인기 및 매출";
+      else if (isPopFrozen) targetStr = "인기";
+      else if (isSalesFrozen) targetStr = "매출";
+      
+      freezeWarningText.innerHTML = `⚠️ 구글 ${targetStr} 순위 갱신 지연 감지됨`;
+    } else {
+      freezeWarningEl.classList.add('hidden');
+    }
+  }
 
   const topPop=p.popularTop10[0];
   setText('todayPopularTop', topPop ? topPop.name : '-');
