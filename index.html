@@ -32,9 +32,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 .cal-cell.today { background: rgba(99, 102, 241, 0.1); box-shadow: inset 0 0 0 1px #6366f1; }
 .cal-date { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
 .cal-cell.today .cal-date { color: #818cf8; }
-/* 폰트 크기 상향, 굵기 상향, 자간 조정, 상하 패딩 확대로 글씨 깨짐 완화 */
 .cal-item { font-size: 11px; font-weight: 500; letter-spacing: -0.3px; padding: 4px 7px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; border: 1px solid transparent; }
-/* 컬러 대비 상향 (형광 에메랄드 / 밝은 화이트그레이) */
 .cal-item.mobile { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; border-color: rgba(16, 185, 129, 0.4); }
 .cal-item.pc { background: rgba(148, 163, 184, 0.25); color: #f1f5f9; border-color: rgba(148, 163, 184, 0.4); }
 .cal-empty { background: rgba(15,23,42,0.5); }
@@ -96,7 +94,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
     
-    <!-- 갱신 지연 감지 경고 배지 -->
     <div id="freezeWarning" class="hidden mb-4 flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-medium">
       <i class="fa-solid fa-triangle-exclamation text-lg"></i> 
       <div>
@@ -182,7 +179,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     </div>
   </section>
 
-  <!-- 오늘의 순위 변동 -->
   <section class="space-y-3">
     <h2 class="font-semibold text-base px-1">오늘의 순위 변동</h2>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -221,11 +217,9 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 
 <!-- CALENDAR VIEW -->
 <div id="view-calendar" class="hidden space-y-4">
-  <!-- 상단 컨트롤 및 요약 -->
   <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
     <div class="flex items-center gap-3">
       <button onclick="changeCalMonth(-1)" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
-      <!-- [수정됨] 월 제목 줄바꿈 방지 적용 (min-w 넓힘, whitespace-nowrap 추가) -->
       <h2 id="calMonthTitle" class="text-xl font-bold w-36 whitespace-nowrap text-center">-</h2>
       <button onclick="changeCalMonth(1)" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
       <button onclick="resetCalMonth()" class="text-xs ml-2 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors shrink-0">이번 달</button>
@@ -246,17 +240,12 @@ select option { background-color: #0f172a; color: #f1f5f9; }
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
-    <!-- 좌측 주차별 요약 -->
     <div class="col-span-1 space-y-3">
       <div class="card rounded-xl p-4">
         <h3 class="text-sm font-semibold mb-3 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-400"></i>주차별 주요 출시작</h3>
-        <div id="calWeeklySummary" class="space-y-4 max-h-[600px] overflow-y-auto scrollbar pr-1">
-          <!-- 주차별 내용 동적 렌더링 -->
-        </div>
+        <div id="calWeeklySummary" class="space-y-4 max-h-[600px] overflow-y-auto scrollbar pr-1"></div>
       </div>
     </div>
-    
-    <!-- 우측 캘린더 그리드 -->
     <div class="col-span-1 lg:col-span-3 card rounded-xl p-4">
       <div class="cal-grid mb-1">
         <div class="cal-header text-rose-400">SUN</div>
@@ -267,9 +256,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         <div class="cal-header">FRI</div>
         <div class="cal-header text-sky-400">SAT</div>
       </div>
-      <div id="calGridBody" class="cal-grid">
-        <!-- 날짜 셀 동적 렌더링 -->
-      </div>
+      <div id="calGridBody" class="cal-grid"></div>
       <div class="flex items-center justify-end gap-3 mt-3 text-[10px] muted">
         <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500/20 border border-emerald-500/30 inline-block"></span>모바일 포함</span>
         <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-slate-700/50 border border-slate-600/50 inline-block"></span>PC/콘솔 단독</span>
@@ -284,16 +271,14 @@ select option { background-color: #0f172a; color: #f1f5f9; }
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
       <div>
         <h2 class="font-semibold">타이틀 순위 검색</h2>
-        <p class="text-xs muted mt-1">게임명을 검색해 인기·매출 순위 추이를 확인하고 비교할 수 있습니다. (검색 자동완성 지원)</p>
+        <p class="text-xs muted mt-1">게임명을 검색해 인기·매출 순위 추이를 확인하고 비교할 수 있습니다.</p>
       </div>
-      
       <div class="flex flex-wrap items-center gap-3">
         <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs">
           <span class="text-slate-400 font-medium mr-1"><i class="fa-regular fa-calendar mr-1"></i>조회 기준일</span>
           <select id="searchYear" onchange="onSearchYearChange()" class="bg-transparent text-slate-200 outline-none cursor-pointer"></select>
           <select id="searchMonth" onchange="onSearchMonthChange()" class="bg-transparent text-slate-200 outline-none cursor-pointer"></select>
           <select id="searchDay" onchange="renderSearchCharts()" class="bg-transparent text-slate-200 outline-none cursor-pointer"></select>
-          
           <span class="text-slate-400 font-medium ml-3 border-l border-slate-700 pl-3">기간</span>
           <select id="searchDuration" onchange="renderSearchCharts()" class="bg-transparent text-slate-200 outline-none cursor-pointer">
             <option value="7">7일</option>
@@ -301,7 +286,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
             <option value="30">30일</option>
           </select>
         </div>
-
         <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer">
           <input type="checkbox" id="toggleSearchPopular" checked onchange="renderSearchCharts()"> <i class="fa-solid fa-fire text-emerald-400"></i> 인기 순위
         </label>
@@ -340,11 +324,9 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         <label id="mobileFilterWrap" class="hidden items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer text-slate-300 hover:bg-slate-700 transition-colors">
           <input type="checkbox" id="mobileFilter" onchange="filterCurrentTable()" class="accent-indigo-500"> 모바일(멀티 플랫폼)만 보기
         </label>
-        
         <select id="filterYear" onchange="onYearChange()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"></select>
         <select id="filterMonth" onchange="onMonthChange()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"></select>
         <select id="filterDay" onchange="filterCurrentTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200"></select>
-
         <input id="tableSearch" oninput="filterCurrentTable()" placeholder="게임명 / 퍼블리셔 검색"
           class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs w-56 max-w-full">
       </div>
@@ -390,7 +372,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         <span class="text-base font-bold text-amber-300" id="detailScoreBadge">-</span>
       </div>
     </div>
-
     <div class="grid grid-cols-2 gap-3">
       <div class="card p-4 rounded-xl border-slate-700/50 bg-slate-800/30">
         <div class="text-[11px] muted mb-1"><i class="fa-solid fa-coins text-indigo-400 mr-1.5"></i>현재 매출 순위</div>
@@ -407,8 +388,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         </div>
       </div>
     </div>
-
-    <!-- 순위 복합 추이 -->
     <div>
       <div class="flex items-center justify-between mb-3">
         <h4 class="text-sm font-semibold">순위 복합 추이 <span class="text-[11px] font-normal text-slate-400">(최근 15일)</span></h4>
@@ -419,8 +398,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       </div>
       <div class="h-[220px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailChart"></canvas></div>
     </div>
-
-    <!-- 평점 추이 -->
     <div class="mt-2">
       <div class="flex items-center justify-between mb-2">
         <h4 class="text-sm font-semibold">평점 추이 <span class="text-[11px] font-normal text-slate-400">(최근 15일)</span></h4>
@@ -428,8 +405,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       </div>
       <div class="h-[130px] card rounded-xl p-3 border-slate-700/50"><canvas id="detailScoreChart"></canvas></div>
     </div>
-
-    <!-- 순위 분석 -->
     <div>
       <h4 class="text-sm font-semibold mb-3">순위 분석 <span class="text-[11px] muted font-normal ml-1">(최근 15일 데이터 기준)</span></h4>
       <div class="card rounded-xl border-slate-700/50 divide-y divide-slate-700/50 text-sm">
@@ -452,29 +427,19 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 
 <script>
 const SPREADSHEET_ID = '1CW7Xr3eWBUKBPC0DXRDsqqrx2itUlzZfXPVF2hUoMAw';
-
-const SHEETS = {
-  sales:'DB_매출순위',
-  popular:'DB_인기순위',
-  newReleases:'월간신작DB'
-};
-
+const SHEETS = { sales:'DB_매출순위', popular:'DB_인기순위', newReleases:'월간신작DB' };
 const rawStore = {sales:null,popular:null,newReleases:null};
 let currentView='dashboard';
 let todayGenreDonutInst = null; 
 
 let currentCalYear = new Date().getFullYear();
 let currentCalMonth = new Date().getMonth() + 1;
-const todayStrForCal = new Date().toISOString().slice(0, 10);
 
 function cleanValue(v){
   if(v===null||v===undefined)return '';
   let val = '';
-  if(typeof v==='object'){
-    val = (v.f!==undefined&&v.f!==null&&v.f!=='') ? v.f : (v.v??'');
-  } else {
-    val = String(v).trim();
-  }
+  if(typeof v==='object'){ val = (v.f!==undefined&&v.f!==null&&v.f!=='') ? v.f : (v.v??''); } 
+  else { val = String(v).trim(); }
   val = String(val).trim();
   if (val.startsWith('Date(')) {
     const m = val.match(/Date\((\d+),(\d+),(\d+)/);
@@ -498,9 +463,7 @@ function parseGviz(text){
     for(let i=0;i<cols.length;i++)arr.push(cleanValue(cells[i]));
     return arr;
   });
-  if(cols.length > 0 && cols.every(c => /^[A-Z]+$/.test(c)) && rows.length > 0) {
-    cols = rows.shift();
-  }
+  if(cols.length > 0 && cols.every(c => /^[A-Z]+$/.test(c)) && rows.length > 0) cols = rows.shift();
   return {cols,rows};
 }
 
@@ -516,36 +479,24 @@ function dateValue(v){
   const m=s.match(/(\d{4})[^0-9]?(\d{1,2})[^0-9]?(\d{1,2})/);
   return m?new Date(+m[1],+m[2]-1,+m[3]).getTime():Date.parse(s)||0;
 }
-
 function rowDate(row) {
   if(!row) return '';
   const val = String(row[0] || '').trim();
   if (val.length >= 10 && val.match(/^\d{4}/)) return val.substring(0, 10).replace(/[-./]/g, '-');
   return val;
 }
-
 function getDates(data){
   if(!data || !data.rows) return [];
   return [...new Set(data.rows.map(r=>rowDate(r)).filter(Boolean))].sort((a,b)=>dateValue(a)-dateValue(b));
 }
 function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 
-function gameName(row) {
-  if(!row) return '-';
-  const name = String(row[3] || '').trim();
-  return name || '-';
-}
-
-function gameAppId(row) {
-  if(!row) return '';
-  return String(row[4] || '').trim();
-}
-
-function getGameKey(row) {
-  if (!row) return '-';
-  const name = String(row[3] || '').trim();
-  if (name) return name.toLowerCase().replace(/\s+/g, '');
-  return '-';
+function gameName(row) { return row ? String(row[3] || '').trim() || '-' : '-'; }
+function gameAppId(row) { return row ? String(row[4] || '').trim() : ''; }
+function getGameKey(row) { 
+  if (!row) return '-'; 
+  const name = String(row[3] || '').trim(); 
+  return name ? name.toLowerCase().replace(/\s+/g, '') : '-'; 
 }
 
 function rankOf(row) {
@@ -560,16 +511,10 @@ function scoreOf(row) {
   if(!row) return '-';
   const rDate = rowDate(row);
   if (rDate < '2026-09-08') return '-';
-  let val = row[8];
-  let str = String(val ?? '').trim();
-  let num = parseFloat(str);
+  let val = row[8], str = String(val ?? '').trim(), num = parseFloat(str);
   if (!isNaN(num) && (num > 5 || num < 0)) {
-    let fallbackVal = row[7];
-    let fallbackNum = parseFloat(String(fallbackVal ?? '').trim());
-    if (!isNaN(fallbackNum) && fallbackNum >= 0 && fallbackNum <= 5) {
-      return String(fallbackVal).trim();
-    }
-    return '-';
+    let fallbackVal = row[7], fallbackNum = parseFloat(String(fallbackVal ?? '').trim());
+    return (!isNaN(fallbackNum) && fallbackNum >= 0 && fallbackNum <= 5) ? String(fallbackVal).trim() : '-';
   }
   return (str && str !== '-' && str !== '0') ? str : '-';
 }
@@ -591,105 +536,66 @@ function buildSnapshotFallback(salesData, popData) {
     if (!data || !data.rows) return map;
     data.rows.forEach(r => {
       if (rowDate(r) === targetDate) {
-        const key = getGameKey(r);
-        const rank = rankOf(r);
+        const key = getGameKey(r), rank = rankOf(r);
         if(key !== '-' && rank !== null) map.set(key, { rank, r });
       }
     });
     return map;
   };
   
-  const latestPopMap = parseRankMap(popData, latest);
-  const prevPopMap = prev ? parseRankMap(popData, prev) : new Map();
-  const latestSalesMap = parseRankMap(salesData, latest);
-  const prevSalesMap = prev ? parseRankMap(salesData, prev) : new Map();
+  const latestPopMap = parseRankMap(popData, latest), prevPopMap = prev ? parseRankMap(popData, prev) : new Map();
+  const latestSalesMap = parseRankMap(salesData, latest), prevSalesMap = prev ? parseRankMap(salesData, prev) : new Map();
   
   const toList = (map, data) => Array.from(map.values()).map(val => {
-    const r = val.r;
-    const isNewSchema = rowDate(r) >= '2026-09-08';
-    const genre = isNewSchema ? r[5] : r[4];
-    const pub = isNewSchema ? r[6] : r[5];
+    const r = val.r, isNewSchema = rowDate(r) >= '2026-09-08';
     return {
-      rank: val.rank,
-      name: String(r[3] || '-').trim(),
-      genre: String(genre || ''),
-      publisher: String(pub || ''),
+      rank: val.rank, name: String(r[3] || '-').trim(),
+      genre: String(isNewSchema ? r[5] : r[4] || ''),
+      publisher: String(isNewSchema ? r[6] : r[5] || ''),
       score: scoreOf(r)
     };
   }).sort((a,b) => a.rank - b.rank);
   
-  const popList = toList(latestPopMap, popData);
-  const salesList = toList(latestSalesMap, salesData);
+  const popList = toList(latestPopMap, popData), salesList = toList(latestSalesMap, salesData);
   
   const getChange = (itemKey, itemRank, prevMap) => {
-    if (!prev) return 'NEW'; 
-    if (!prevMap.has(itemKey)) return 'NEW';
+    if (!prev || !prevMap.has(itemKey)) return 'NEW';
     const prevRank = prevMap.get(itemKey).rank;
     if (prevRank === itemRank) return '-';
     return prevRank > itemRank ? `▲ ${prevRank - itemRank}` : `▼ ${itemRank - prevRank}`;
   };
   
-  const popularTop30 = popList.slice(0, 30).map(x => {
-    const key = x.name.toLowerCase().replace(/\s+/g, '');
-    return {...x, change: getChange(key, x.rank, prevPopMap)};
-  });
-  
-  const salesTop30 = salesList.slice(0, 30).map(x => {
-    const key = x.name.toLowerCase().replace(/\s+/g, '');
-    return {...x, change: getChange(key, x.rank, prevSalesMap)};
-  });
-  
-  const popularTop10 = popularTop30.slice(0, 10);
-  const salesTop10 = salesTop30.slice(0, 10);
-  
-  const newEntries = popList.filter(x => {
-    const key = x.name.toLowerCase().replace(/\s+/g, '');
-    return prev && !prevPopMap.has(key);
-  }).slice(0, 10).map(x => ({...x, change: 'NEW'}));
+  const popularTop30 = popList.slice(0, 30).map(x => ({...x, change: getChange(x.name.toLowerCase().replace(/\s+/g, ''), x.rank, prevPopMap)}));
+  const salesTop30 = salesList.slice(0, 30).map(x => ({...x, change: getChange(x.name.toLowerCase().replace(/\s+/g, ''), x.rank, prevSalesMap)}));
   
   const salesChanges = salesList.map(x => {
-    const key = x.name.toLowerCase().replace(/\s+/g, '');
-    const pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
-    let diff = 0;
-    if (pRank !== null) {
-      diff = pRank - x.rank; 
-    }
-    return { ...x, diff, change: getChange(key, x.rank, prevSalesMap) };
+    const key = x.name.toLowerCase().replace(/\s+/g, ''), pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
+    return { ...x, diff: pRank !== null ? pRank - x.rank : 0, change: getChange(key, x.rank, prevSalesMap) };
   });
-  
-  const salesRising = salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10);
-  const salesFalling = salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10);
   
   const countGenres = (list) => {
     const counts = {};
-    list.slice(0, 100).forEach(x => {
-      const g = x.genre || '기타';
-      counts[g] = (counts[g] || 0) + 1;
-    });
+    list.slice(0, 100).forEach(x => counts[x.genre || '기타'] = (counts[x.genre || '기타'] || 0) + 1);
     return Object.entries(counts).map(([genre, count]) => ({genre, count})).sort((a,b) => b.count - a.count);
   };
   
   return {
     asOfDate: latest,
-    popularTop10, salesTop10,
+    popularTop10: popularTop30.slice(0, 10), salesTop10: salesTop30.slice(0, 10),
     popularTop30, salesTop30, 
-    newEntries, salesRising, salesFalling, 
+    newEntries: popList.filter(x => prev && !prevPopMap.has(x.name.toLowerCase().replace(/\s+/g, ''))).slice(0, 10).map(x => ({...x, change: 'NEW'})), 
+    salesRising: salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10), 
+    salesFalling: salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10), 
     popularGenre: countGenres(popList), salesGenre: countGenres(salesList)
   };
 }
 
 function rankChangeBadge(change, large=false){
-  const c=String(change||'').trim();
-  const textClass = large ? 'text-sm' : 'text-[11px]';
-  if(!c || c === '-' || c === '0' || c.includes('유지')) {
-    return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
-  }
-  if(/new/i.test(c)) {
-    return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
-  }
-  if(c.startsWith('▲'))return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  if(c.startsWith('▼'))return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
-  
+  const c=String(change||'').trim(), textClass = large ? 'text-sm' : 'text-[11px]';
+  if(!c || c === '-' || c === '0' || c.includes('유지')) return `<span class="rank-flat ${textClass} font-semibold whitespace-nowrap">-</span>`;
+  if(/new/i.test(c)) return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
+  if(c.startsWith('▲')) return `<span class="rank-up ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
+  if(c.startsWith('▼')) return `<span class="rank-down ${textClass} font-semibold whitespace-nowrap">${escapeHtml(c)}</span>`;
   const num = Number(c);
   if(!isNaN(num)) {
     if(num > 900) return `<span class="text-indigo-300 ${textClass} font-semibold whitespace-nowrap">NEW</span>`;
@@ -703,10 +609,8 @@ function getLatestScore(gameTitle) {
   const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
   const findIn = (data) => {
     if(!data || !data.rows) return null;
-    const latest = latestDate(data);
-    const row = data.rows.find(r => rowDate(r) === latest && getGameKey(r) === targetKey);
-    if(!row) return null;
-    return scoreOf(row);
+    const row = data.rows.find(r => rowDate(r) === latestDate(data) && getGameKey(r) === targetKey);
+    return row ? scoreOf(row) : null;
   };
   const sc = findIn(rawStore.sales) || findIn(rawStore.popular);
   return (sc && sc !== '-' && sc !== '0') ? sc : null;
@@ -714,21 +618,13 @@ function getLatestScore(gameTitle) {
 
 function renderRankList(elId, items, {showMeta=true}={}) {
   const el = document.getElementById(elId);
-  if (!items || !items.length) {
-    el.innerHTML = '<li class="text-xs muted py-2">데이터 없음</li>';
-    return;
-  }
+  if (!items || !items.length) { el.innerHTML = '<li class="text-xs muted py-2">데이터 없음</li>'; return; }
   el.innerHTML = items.map(it => {
     const scoreVal = it.score || getLatestScore(it.name);
     const scoreBadge = (scoreVal && scoreVal !== '-') 
-      ? `<span class="text-amber-400 font-semibold text-[11px] flex items-center shrink-0 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
-           <i class="fa-solid fa-star text-[9px] mr-1"></i>${escapeHtml(scoreVal)}
-         </span>` 
-      : '';
+      ? `<span class="text-amber-400 font-semibold text-[11px] flex items-center shrink-0 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20"><i class="fa-solid fa-star text-[9px] mr-1"></i>${escapeHtml(scoreVal)}</span>` : '';
     let displayChange = it.change;
-    if (elId === 'newEntriesList' && (!displayChange || displayChange === '-' || displayChange === '0')) {
-      displayChange = 'NEW';
-    }
+    if (elId === 'newEntriesList' && (!displayChange || displayChange === '-' || displayChange === '0')) displayChange = 'NEW';
     return `
       <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0 hover:bg-slate-800/30 cursor-pointer rounded px-1.5 transition-colors" onclick="openGameDetail('${escapeAttr(it.name)}')">
         <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -740,9 +636,7 @@ function renderRankList(elId, items, {showMeta=true}={}) {
         </div>
         <div class="flex items-center gap-2 shrink-0">
           ${scoreBadge}
-          <div class="w-12 text-right flex justify-end">
-            ${rankChangeBadge(displayChange)}
-          </div>
+          <div class="w-12 text-right flex justify-end">${rankChangeBadge(displayChange)}</div>
         </div>
       </li>`;
   }).join('');
@@ -755,9 +649,7 @@ function renderGenreBars(elId,arr){
   el.innerHTML=arr.map(a=>`
     <div class="flex items-center gap-2 py-1">
       <span class="text-[11px] w-16 shrink-0 truncate">${escapeHtml(a.genre)}</span>
-      <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-        <div class="h-full bg-indigo-500/70" style="width:${(a.count/max*100).toFixed(0)}%"></div>
-      </div>
+      <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-indigo-500/70" style="width:${(a.count/max*100).toFixed(0)}%"></div></div>
       <span class="text-[11px] muted w-6 text-right">${a.count}</span>
     </div>`).join('');
 }
@@ -769,91 +661,49 @@ function renderToday(){
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
 
-  const freezeWarningEl = document.getElementById('freezeWarning');
-  const freezeWarningText = document.getElementById('freezeWarningText');
+  const freezeWarningEl = document.getElementById('freezeWarning'), freezeWarningText = document.getElementById('freezeWarningText');
   if (freezeWarningEl && freezeWarningText) {
     const checkFrozen = (list) => {
       if (!list || list.length === 0) return false;
-      const frozenCount = list.filter(item => {
-        const c = String(item.change || '').trim();
-        return c === '-' || c === '0' || c.includes('유지');
-      }).length;
-      return (frozenCount / list.length) >= 0.9; 
+      return (list.filter(item => { const c = String(item.change || '').trim(); return c === '-' || c === '0' || c.includes('유지'); }).length / list.length) >= 0.9; 
     };
-    const isPopFrozen = checkFrozen(p.popularTop30);
-    const isSalesFrozen = checkFrozen(p.salesTop30);
+    const isPopFrozen = checkFrozen(p.popularTop30), isSalesFrozen = checkFrozen(p.salesTop30);
     if (isPopFrozen || isSalesFrozen) {
       freezeWarningEl.classList.remove('hidden');
-      let targetStr = "";
-      if (isPopFrozen && isSalesFrozen) targetStr = "인기 및 매출";
-      else if (isPopFrozen) targetStr = "인기";
-      else if (isSalesFrozen) targetStr = "매출";
-      freezeWarningText.innerHTML = `⚠️ 구글 ${targetStr} 순위 갱신 지연 감지됨`;
+      freezeWarningText.innerHTML = `⚠️ 구글 ${isPopFrozen && isSalesFrozen ? "인기 및 매출" : isPopFrozen ? "인기" : "매출"} 순위 갱신 지연 감지됨`;
     } else {
       freezeWarningEl.classList.add('hidden');
     }
   }
 
-  const topPop=p.popularTop10[0];
-  setText('todayPopularTop', topPop ? topPop.name : '-');
-  setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
-  document.getElementById('todayPopChange').innerHTML = topPop ? rankChangeBadge(topPop.change) : '';
-  const popScore = topPop ? getLatestScore(topPop.name) : null;
-  document.getElementById('todayPopularScore').innerHTML = popScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${popScore}` : '';
-  document.getElementById('cardPopular1').onclick = () => { if(topPop) openGameDetail(topPop.name); };
+  const bindTop = (item, prefix) => {
+    setText(`today${prefix}Top`, item ? item.name : '-');
+    document.getElementById(`today${prefix}Change`).innerHTML = item ? rankChangeBadge(item.change) : (prefix==='New'?'<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>':'');
+    const sc = item ? getLatestScore(item.name) : null;
+    document.getElementById(`today${prefix}Score`).innerHTML = sc ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${sc}` : '';
+    document.getElementById(`card${prefix}1`).onclick = () => { if(item) openGameDetail(item.name); };
+  };
 
-  const topSales=p.salesTop10[0];
-  setText('todaySalesTop', topSales ? topSales.name : '-');
-  setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
-  document.getElementById('todaySalesChange').innerHTML = topSales ? rankChangeBadge(topSales.change) : '';
-  const salesScore = topSales ? getLatestScore(topSales.name) : null;
-  document.getElementById('todaySalesScore').innerHTML = salesScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${salesScore}` : '';
-  document.getElementById('cardSales1').onclick = () => { if(topSales) openGameDetail(topSales.name); };
-
-  const topNew = p.newEntries[0];
-  setText('todayNewTop', topNew ? topNew.name : '-');
-  setText('todayNewMeta', topNew ? `현재 ${topNew.rank}위 (최고 진입)` : '신규 진입 없음');
-  document.getElementById('todayNewChange').innerHTML = topNew ? '<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>' : '';
-  const newScore = topNew ? getLatestScore(topNew.name) : null;
-  document.getElementById('todayNewScore').innerHTML = newScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${newScore}` : '';
-  document.getElementById('cardNew1').onclick = () => { if(topNew) openGameDetail(topNew.name); };
-
-  const topRise = p.salesRising[0];
-  setText('todayRisingTop', topRise ? topRise.name : '-');
-  setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
-  document.getElementById('todayRisingChange').innerHTML = topRise ? rankChangeBadge(topRise.change) : '';
-  const riseScore = topRise ? getLatestScore(topRise.name) : null;
-  document.getElementById('todayRisingScore').innerHTML = riseScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${riseScore}` : '';
-  document.getElementById('cardRising1').onclick = () => { if(topRise) openGameDetail(topRise.name); };
+  bindTop(p.popularTop10[0], 'Popular');
+  setText('todayPopularMeta', p.popularTop10[0] ? `${p.popularTop10[0].genre || '-'} · ${p.popularTop10[0].publisher || '-'}` : '-');
+  
+  bindTop(p.salesTop10[0], 'Sales');
+  setText('todaySalesMeta', p.salesTop10[0] ? `${p.salesTop10[0].genre || '-'} · ${p.salesTop10[0].publisher || '-'}` : '-');
+  
+  bindTop(p.newEntries[0], 'New');
+  setText('todayNewMeta', p.newEntries[0] ? `현재 ${p.newEntries[0].rank}위 (최고 진입)` : '신규 진입 없음');
+  
+  bindTop(p.salesRising[0], 'Rising');
+  setText('todayRisingMeta', p.salesRising[0] ? `현재 ${p.salesRising[0].rank}위` : '전일 대비');
 
   if(todayGenreDonutInst) todayGenreDonutInst.destroy();
-  const top3Genres = p.salesGenre.slice(0, 3);
-  const totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0);
-  const donutColors = ['#fbbf24', '#34d399', '#818cf8'];
-
+  const top3Genres = p.salesGenre.slice(0, 3), totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0), donutColors = ['#fbbf24', '#34d399', '#818cf8'];
   if(top3Genres.length > 0) {
-    const ctx = document.getElementById('todayGenreDonut').getContext('2d');
-    todayGenreDonutInst = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: top3Genres.map(g => g.genre),
-        datasets: [{
-          data: top3Genres.map(g => g.count),
-          backgroundColor: donutColors,
-          borderWidth: 0,
-          hoverOffset: 2
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, cutout: '70%',
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        layout: { padding: 0 }
-      }
+    todayGenreDonutInst = new Chart(document.getElementById('todayGenreDonut').getContext('2d'), {
+      type: 'doughnut', data: { labels: top3Genres.map(g => g.genre), datasets: [{ data: top3Genres.map(g => g.count), backgroundColor: donutColors, borderWidth: 0, hoverOffset: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, layout: { padding: 0 } }
     });
-    document.getElementById('todayGenreLegend').innerHTML = top3Genres.map((g, i) => {
-      const pct = totalCount > 0 ? ((g.count / totalCount) * 100).toFixed(0) : 0;
-      return `<div class="truncate flex items-center text-slate-300"><span class="w-1.5 h-1.5 inline-block rounded-full mr-1.5 shrink-0" style="background:${donutColors[i]}"></span><span class="truncate">${g.genre} ${pct}%</span></div>`;
-    }).join('');
+    document.getElementById('todayGenreLegend').innerHTML = top3Genres.map((g, i) => `<div class="truncate flex items-center text-slate-300"><span class="w-1.5 h-1.5 inline-block rounded-full mr-1.5 shrink-0" style="background:${donutColors[i]}"></span><span class="truncate">${g.genre} ${(totalCount > 0 ? ((g.count / totalCount) * 100).toFixed(0) : 0)}%</span></div>`).join('');
   } else {
     document.getElementById('todayGenreLegend').innerHTML = '<div class="muted">데이터 없음</div>';
   }
@@ -870,11 +720,10 @@ function renderToday(){
 function switchView(view){
   currentView=view;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
-  document.getElementById('view-dashboard').classList.toggle('hidden',view!=='dashboard');
-  document.getElementById('view-search').classList.toggle('hidden',view!=='search');
-  document.getElementById('view-database').classList.toggle('hidden',!(view==='sales'||view==='popular'||view==='newReleases'));
-  document.getElementById('view-calendar').classList.toggle('hidden',view!=='calendar');
-  
+  ['dashboard','search','calendar','database'].forEach(v => {
+    const el = document.getElementById(`view-${v}`);
+    if(el) el.classList.toggle('hidden', v==='database' ? !(view==='sales'||view==='popular'||view==='newReleases') : view!==v);
+  });
   if(view==='sales'||view==='popular'||view==='newReleases')renderDatabase(view);
   if(view==='search')renderSearchCharts();
   if(view==='calendar')renderCalendar();
@@ -888,22 +737,18 @@ function changeCalMonth(offset) {
 }
 
 function resetCalMonth() {
-  const d = new Date();
-  currentCalYear = d.getFullYear();
-  currentCalMonth = d.getMonth() + 1;
+  currentCalYear = new Date().getFullYear();
+  currentCalMonth = new Date().getMonth() + 1;
   renderCalendar();
 }
 
 function renderCalendar() {
-  const data = rawStore.newReleases;
-  const gridBody = document.getElementById('calGridBody');
-  const weeklySummary = document.getElementById('calWeeklySummary');
+  const data = rawStore.newReleases, gridBody = document.getElementById('calGridBody'), weeklySummary = document.getElementById('calWeeklySummary');
   setText('calMonthTitle', `${currentCalYear}년 ${currentCalMonth}월`);
   
   if(!data || !data.rows) {
     gridBody.innerHTML = '<div class="col-span-7 p-10 text-center muted">데이터를 불러오는 중입니다.</div>';
-    weeklySummary.innerHTML = '<div class="muted text-xs">데이터 없음</div>';
-    return;
+    weeklySummary.innerHTML = '<div class="muted text-xs">데이터 없음</div>'; return;
   }
 
   const isMobileOnly = document.getElementById('calMobileOnly').checked;
@@ -913,109 +758,51 @@ function renderCalendar() {
   data.rows.forEach(r => {
     const rDate = String(r[0]||'').trim();
     if(rDate.startsWith(targetYM)) {
-      const platformStr = String(r[2] || '').trim();
-      const isMobile = platformStr.replace(/\s+/g, '').includes('모바일');
+      const platformStr = String(r[2] || '').trim(), isMobile = platformStr.replace(/\s+/g, '').includes('모바일');
       if(isMobileOnly && !isMobile) return;
-      
-      monthGames.push({
-        date: rDate,
-        day: parseInt(rDate.split('-')[2], 10),
-        name: String(r[1]||'-').trim(),
-        platform: platformStr,
-        publisher: String(r[3]||'-').trim(),
-        type: String(r[4]||'-').trim(),
-        isMobile: isMobile
-      });
+      monthGames.push({ date: rDate, day: parseInt(rDate.split('-')[2], 10), name: String(r[1]||'-').trim(), platform: platformStr, publisher: String(r[3]||'-').trim(), type: String(r[4]||'-').trim(), isMobile: isMobile });
     }
   });
 
   const countMobile = monthGames.filter(g => g.isMobile).length;
-  setText('calStatTotal', monthGames.length);
-  setText('calStatMobile', countMobile);
-  setText('calStatPC', monthGames.length - countMobile);
+  setText('calStatTotal', monthGames.length); setText('calStatMobile', countMobile); setText('calStatPC', monthGames.length - countMobile);
 
   const firstDay = new Date(currentCalYear, currentCalMonth - 1, 1).getDay();
   const daysInMonth = new Date(currentCalYear, currentCalMonth, 0).getDate();
   const todayVal = new Date().toISOString().slice(0, 10);
   
   let gridHtml = '';
-  for(let i=0; i<firstDay; i++) {
-    gridHtml += `<div class="cal-cell cal-empty"></div>`;
-  }
+  for(let i=0; i<firstDay; i++) gridHtml += `<div class="cal-cell cal-empty"></div>`;
   
   for(let d=1; d<=daysInMonth; d++) {
-    const dStr = `${targetYM}-${String(d).padStart(2, '0')}`;
-    const isToday = dStr === todayVal;
-    const dayGames = monthGames.filter(g => g.day === d);
-    
-    let itemsHtml = dayGames.map(g => {
-      const tooltip = `플랫폼: ${g.platform}\n퍼블리셔: ${g.publisher}\n유형: ${g.type}`;
-      const colorClass = g.isMobile ? 'mobile' : 'pc';
-      return `<div class="cal-item ${colorClass}" title="${escapeAttr(tooltip)}">${escapeHtml(g.name)}</div>`;
-    }).join('');
-
-    gridHtml += `
-      <div class="cal-cell ${isToday ? 'today' : ''}">
-        <div class="cal-date">${d}</div>
-        ${itemsHtml}
-      </div>`;
+    const isToday = `${targetYM}-${String(d).padStart(2, '0')}` === todayVal;
+    let itemsHtml = monthGames.filter(g => g.day === d).map(g => `<div class="cal-item ${g.isMobile ? 'mobile' : 'pc'}" title="${escapeAttr(`플랫폼: ${g.platform}\n퍼블리셔: ${g.publisher}\n유형: ${g.type}`)}">${escapeHtml(g.name)}</div>`).join('');
+    gridHtml += `<div class="cal-cell ${isToday ? 'today' : ''}"><div class="cal-date">${d}</div>${itemsHtml}</div>`;
   }
   
-  const totalCells = firstDay + daysInMonth;
-  const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-  for(let i=0; i<remainingCells; i++) {
-    gridHtml += `<div class="cal-cell cal-empty"></div>`;
-  }
+  const remainingCells = (firstDay + daysInMonth) % 7 === 0 ? 0 : 7 - ((firstDay + daysInMonth) % 7);
+  for(let i=0; i<remainingCells; i++) gridHtml += `<div class="cal-cell cal-empty"></div>`;
   gridBody.innerHTML = gridHtml;
 
   let weeklyHtml = '';
-  const weeksCount = Math.ceil(totalCells / 7);
-  
-  for(let w=0; w<weeksCount; w++) {
-    const startDay = (w * 7) - firstDay + 1;
-    const endDay = startDay + 6;
-    const actualStart = Math.max(1, startDay);
-    const actualEnd = Math.min(daysInMonth, endDay);
+  for(let w=0; w<Math.ceil((firstDay + daysInMonth) / 7); w++) {
+    const startDay = (w * 7) - firstDay + 1, endDay = startDay + 6;
+    const actualStart = Math.max(1, startDay), actualEnd = Math.min(daysInMonth, endDay);
     
     if (actualStart <= daysInMonth && actualEnd >= 1) {
       const weekGames = monthGames.filter(g => g.day >= actualStart && g.day <= actualEnd);
       if (weekGames.length > 0) {
-        const wMobileCnt = weekGames.filter(g => g.isMobile).length;
-        
-        // [수정됨] 1. 개별 칩(Chip) 태그 UI 변환 및 2. +N종 더보기 (툴팁) 적용
-        const topGames = weekGames.slice(0, 3);
-        const remainingGames = weekGames.slice(3);
-        
-        let chipsHtml = topGames.map(g => {
-            const colorClass = g.isMobile ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700/50 text-slate-300 border-slate-600/50';
-            return `<span class="inline-block px-2 py-0.5 rounded border ${colorClass} text-[10px] mr-1 mb-1 truncate max-w-[150px]" title="${escapeAttr(g.name)}">${escapeHtml(g.name)}</span>`;
-        }).join('');
-
-        let moreHtml = '';
-        if (remainingGames.length > 0) {
-            const tooltipText = remainingGames.map(g => g.name).join('&#10;');
-            moreHtml = `<span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] cursor-help mb-1" title="${escapeAttr(tooltipText)}">+${remainingGames.length}종 더보기</span>`;
-        }
-        
+        let chipsHtml = weekGames.slice(0, 3).map(g => `<span class="inline-block px-2 py-0.5 rounded border ${g.isMobile ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700/50 text-slate-300 border-slate-600/50'} text-[10px] mr-1 mb-1 truncate max-w-[150px]" title="${escapeAttr(g.name)}">${escapeHtml(g.name)}</span>`).join('');
+        let moreHtml = weekGames.length > 3 ? `<span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] cursor-help mb-1" title="${escapeAttr(weekGames.slice(3).map(g => g.name).join('&#10;'))}">+${weekGames.length-3}종 더보기</span>` : '';
         weeklyHtml += `
           <div class="border-b border-slate-800 pb-3 last:border-0">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold text-indigo-300">${w+1}주차 <span class="muted font-normal ml-1">(${currentCalMonth}/${actualStart} ~ ${currentCalMonth}/${actualEnd})</span></span>
-              <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700 shrink-0">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${wMobileCnt}</span></span>
-            </div>
-            <div class="flex flex-wrap gap-y-0.5">
-              ${chipsHtml}${moreHtml}
-            </div>
-          </div>
-        `;
+            <div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-indigo-300">${w+1}주차 <span class="muted font-normal ml-1">(${currentCalMonth}/${actualStart} ~ ${currentCalMonth}/${actualEnd})</span></span><span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700 shrink-0">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${weekGames.filter(g => g.isMobile).length}</span></span></div>
+            <div class="flex flex-wrap gap-y-0.5">${chipsHtml}${moreHtml}</div>
+          </div>`;
       }
     }
   }
-  
-  if(!weeklyHtml) {
-    weeklyHtml = '<div class="muted text-xs py-4 text-center">해당 월에 필터링된 신작 일정이 없습니다.</div>';
-  }
-  weeklySummary.innerHTML = weeklyHtml;
+  weeklySummary.innerHTML = weeklyHtml || '<div class="muted text-xs py-4 text-center">해당 월에 필터링된 신작 일정이 없습니다.</div>';
 }
 
 function populateGameNameOptions(){
@@ -1028,16 +815,11 @@ function populateGameNameOptions(){
 
 function getTopTitlesSafe(data, n=3) {
   if (!data || !data.rows) return ['데이터 없음'];
-  const latest = latestDate(data);
-  const filtered = data.rows.filter(r => rowDate(r) === latest);
-  filtered.sort((a, b) => (rankOf(a) || 9999) - (rankOf(b) || 9999));
-  
+  const filtered = data.rows.filter(r => rowDate(r) === latestDate(data)).sort((a, b) => (rankOf(a) || 9999) - (rankOf(b) || 9999));
   const names = [];
   for (let r of filtered) {
     const gn = gameName(r);
-    if (gn && gn !== '-' && !names.includes(gn)) {
-      names.push(gn);
-    }
+    if (gn && gn !== '-' && !names.includes(gn)) names.push(gn);
   }
   const top = names.slice(0, n);
   return top.length > 0 ? top : ['데이터 없음'];
@@ -1048,7 +830,6 @@ let searchPopularChartInst=null, searchSalesChartInst=null, detailChartInst=null
 function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, duration, padding=15) {
   if(!data || !data.rows) return prevInst;
   const ctx=document.getElementById(canvasId).getContext('2d');
-  
   let allDates = getDates(data);
   if(baseDate) allDates = allDates.filter(d => d <= baseDate);
   const dates = allDates.slice(-duration);
@@ -1063,24 +844,13 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   }));
   
   if(prevInst)prevInst.destroy();
-  
   return new Chart(ctx,{
     type:'line', data:{labels:dates,datasets},
     options:{
       layout:{padding:{top:padding}}, responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
       plugins:{legend:{labels:{color:'#cbd5e1',font:{size:10}}}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw??'-'}위`}}},
       scales:{
-        x:{
-          grid:{color:'rgba(51,65,85,.35)'},
-          ticks:{
-            color:'#94a3b8',
-            maxTicksLimit:12,
-            callback: function(val) {
-              const label = this.getLabelForValue(val);
-              return label ? label.substring(5).replace('-', '/') : '';
-            }
-          }
-        },
+        x:{grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8',maxTicksLimit:12,callback: function(val) { const label = this.getLabelForValue(val); return label ? label.substring(5).replace('-', '/') : ''; }}},
         y:{reverse:true,min:1,suggestedMax:100,grid:{color:'rgba(51,65,85,.35)'},ticks:{color:'#94a3b8'}}
       }
     }
@@ -1089,60 +859,39 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
 
 function renderSearchCharts(){
   if(!rawStore.sales&&!rawStore.popular)return;
-  const t1=document.getElementById('searchTitle1').value.trim(), t2=document.getElementById('searchTitle2').value.trim();
-  let titles=[t1,t2].filter(Boolean);
+  const t1=document.getElementById('searchTitle1').value.trim(), t2=document.getElementById('searchTitle2').value.trim(), titles=[t1,t2].filter(Boolean);
   const showPop=document.getElementById('toggleSearchPopular').checked, showSales=document.getElementById('toggleSearchSales').checked;
-  
-  const y = document.getElementById('searchYear')?.value;
-  const m = document.getElementById('searchMonth')?.value;
-  const d = document.getElementById('searchDay')?.value;
-  const baseDate = (y && m && d) ? `${y}-${m}-${d.padStart(2,'0')}` : null;
-  const duration = parseInt(document.getElementById('searchDuration')?.value || '15', 10);
+  const y = document.getElementById('searchYear')?.value, m = document.getElementById('searchMonth')?.value, d = document.getElementById('searchDay')?.value;
+  const baseDate = (y && m && d) ? `${y}-${m}-${d.padStart(2,'0')}` : null, duration = parseInt(document.getElementById('searchDuration')?.value || '15', 10);
 
   document.getElementById('searchPopularWrap').classList.toggle('hidden',!showPop);
   document.getElementById('searchSalesWrap').classList.toggle('hidden',!showSales);
   const colors=['#818cf8', '#fbbf24', '#34d399', '#f87171', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8'];
   
-  const popTargetTitles = titles.length > 0 ? titles : getTopTitlesSafe(rawStore.popular, 3);
-  const salesTargetTitles = titles.length > 0 ? titles : getTopTitlesSafe(rawStore.sales, 3);
-
-  if(showPop) searchPopularChartInst=drawChartShared('searchPopularChart',searchPopularChartInst,rawStore.popular,popTargetTitles,colors, baseDate, duration);
-  if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,salesTargetTitles,colors, baseDate, duration);
+  if(showPop) searchPopularChartInst=drawChartShared('searchPopularChart',searchPopularChartInst,rawStore.popular,titles.length > 0 ? titles : getTopTitlesSafe(rawStore.popular, 3),colors, baseDate, duration);
+  if(showSales) searchSalesChartInst=drawChartShared('searchSalesChart',searchSalesChartInst,rawStore.sales,titles.length > 0 ? titles : getTopTitlesSafe(rawStore.sales, 3),colors, baseDate, duration);
 }
 
 function setupSearchDateSelect() {
   const data = rawStore.sales || rawStore.popular;
   if(!data) return;
-  const dates = getDates(data).reverse();
-  
-  const ySet = new Set();
+  const dates = getDates(data).reverse(), ySet = new Set();
   dates.forEach(d => ySet.add(d.slice(0, 4)));
-  const years = [...ySet].sort().reverse();
-  
-  const ySel = document.getElementById('searchYear');
+  const years = [...ySet].sort().reverse(), ySel = document.getElementById('searchYear');
   if(!ySel) return;
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
-  
-  const latest = latestDate(data);
-  const targetY = latest ? latest.slice(0, 4) : years[0];
-  const targetM = latest ? latest.slice(5, 7) : '';
-  const targetD = latest;
-  
+  const latest = latestDate(data), targetY = latest ? latest.slice(0, 4) : years[0], targetM = latest ? latest.slice(5, 7) : '', targetD = latest;
   ySel.value = targetY;
   updateSearchMonthSelect(targetY, targetM, targetD);
 }
 
 function updateSearchMonthSelect(year, selectedM='', selectedD='') {
   const data = rawStore.sales || rawStore.popular;
-  const dates = getDates(data).reverse();
-  const mSet = new Set();
+  const dates = getDates(data).reverse(), mSet = new Set();
   dates.forEach(d => { if(d.startsWith(year)) mSet.add(d.slice(5, 7)); });
-  const months = [...mSet].sort().reverse();
-  
-  const mSel = document.getElementById('searchMonth');
+  const months = [...mSet].sort().reverse(), mSel = document.getElementById('searchMonth');
   if(!mSel) return;
   mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
-  
   const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
   mSel.value = targetM;
   updateSearchDaySelect(year, targetM, selectedD);
@@ -1150,74 +899,40 @@ function updateSearchMonthSelect(year, selectedM='', selectedD='') {
 
 function updateSearchDaySelect(year, month, selectedD='') {
   const data = rawStore.sales || rawStore.popular;
-  const dates = getDates(data).reverse();
-  const filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
-  
+  const dates = getDates(data).reverse(), filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
   const dSel = document.getElementById('searchDay');
   if(!dSel) return;
-  dSel.innerHTML = filteredDays.map(d => {
-    const dayNum = d.slice(8, 10);
-    return `<option value="${dayNum}">${Number(dayNum)}일</option>`;
-  }).join('');
-  
-  const dOnly = selectedD ? selectedD.slice(8, 10) : '';
-  const targetD = (dOnly && filteredDays.some(d => d.endsWith(dOnly))) ? dOnly : (filteredDays[0] ? filteredDays[0].slice(8, 10) : '');
+  dSel.innerHTML = filteredDays.map(d => `<option value="${d.slice(8, 10)}">${Number(d.slice(8, 10))}일</option>`).join('');
+  const dOnly = selectedD ? selectedD.slice(8, 10) : '', targetD = (dOnly && filteredDays.some(d => d.endsWith(dOnly))) ? dOnly : (filteredDays[0] ? filteredDays[0].slice(8, 10) : '');
   dSel.value = targetD;
 }
 
-function onSearchYearChange() {
-  const y = document.getElementById('searchYear').value;
-  updateSearchMonthSelect(y);
-  renderSearchCharts();
-}
+function onSearchYearChange() { updateSearchMonthSelect(document.getElementById('searchYear').value); renderSearchCharts(); }
+function onSearchMonthChange() { updateSearchDaySelect(document.getElementById('searchYear').value, document.getElementById('searchMonth').value); renderSearchCharts(); }
 
-function onSearchMonthChange() {
-  const y = document.getElementById('searchYear').value;
-  const m = document.getElementById('searchMonth').value;
-  updateSearchDaySelect(y, m);
-  renderSearchCharts();
-}
-
+/* =========================================================================
+   DB 뷰 전용 필터 및 렌더링 (RESTORED)
+========================================================================= */
 function setupDateSelect(){
   const data = rawStore[currentView];
   if(!data) return;
-  const dates = getDates(data).reverse(); 
-
-  const ySet = new Set();
-  dates.forEach(d => {
-    const y = d.slice(0, 4);
-    ySet.add(y);
-  });
-
-  const years = [...ySet].sort().reverse();
-  const ySel = document.getElementById('filterYear');
+  const dates = getDates(data).reverse(), ySet = new Set();
+  dates.forEach(d => ySet.add(d.slice(0, 4)));
+  const years = [...ySet].sort().reverse(), ySel = document.getElementById('filterYear');
   if(!ySel) return;
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
-
-  const targetY = dates[0] ? dates[0].slice(0, 4) : years[0];
-  const targetM = dates[0] ? dates[0].slice(5, 7) : '';
-  const targetD = dates[0];
-
+  const targetY = dates[0] ? dates[0].slice(0, 4) : years[0], targetM = dates[0] ? dates[0].slice(5, 7) : '', targetD = dates[0];
   ySel.value = targetY;
   updateMonthSelect(targetY, targetM, targetD);
 }
 
 function updateMonthSelect(year, selectedM='', selectedD=''){
   const data = rawStore[currentView];
-  const dates = getDates(data).reverse();
-  const mSet = new Set();
-
-  dates.forEach(d => {
-    if(d.startsWith(year)) {
-      mSet.add(d.slice(5, 7));
-    }
-  });
-
-  const months = [...mSet].sort().reverse();
-  const mSel = document.getElementById('filterMonth');
+  const dates = getDates(data).reverse(), mSet = new Set();
+  dates.forEach(d => { if(d.startsWith(year)) mSet.add(d.slice(5, 7)); });
+  const months = [...mSet].sort().reverse(), mSel = document.getElementById('filterMonth');
   if(!mSel) return;
   mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
-
   const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
   mSel.value = targetM;
   updateDaySelect(year, targetM, selectedD);
@@ -1225,54 +940,31 @@ function updateMonthSelect(year, selectedM='', selectedD=''){
 
 function updateDaySelect(year, month, selectedD=''){
   const data = rawStore[currentView];
-  const dates = getDates(data).reverse();
-  
-  const filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
+  const dates = getDates(data).reverse(), filteredDays = dates.filter(d => d.startsWith(`${year}-${month}`));
   const dSel = document.getElementById('filterDay');
   if(!dSel) return;
   dSel.innerHTML = filteredDays.map(d => `<option value="${d}">${d}</option>`).join('');
-
   const targetD = (selectedD && filteredDays.includes(selectedD)) ? selectedD : filteredDays[0];
   if(targetD) dSel.value = targetD;
   filterCurrentTable();
 }
 
-function onYearChange(){
-  const y = document.getElementById('filterYear').value;
-  updateMonthSelect(y);
-}
-
-function onMonthChange(){
-  const y = document.getElementById('filterYear').value;
-  const m = document.getElementById('filterMonth').value;
-  updateDaySelect(y, m);
-}
+function onYearChange(){ updateMonthSelect(document.getElementById('filterYear').value); }
+function onMonthChange(){ updateDaySelect(document.getElementById('filterYear').value, document.getElementById('filterMonth').value); }
 
 function setupNewReleasesDateSelect(){
   const data = rawStore.newReleases;
   if(!data || !data.rows) return;
-
   const months = [...new Set(data.rows.map(r => {
-    const val = String(r[0]||'');
-    const m = val.match(/(\d{4})[^0-9]?(\d{1,2})/);
+    const val = String(r[0]||''), m = val.match(/(\d{4})[^0-9]?(\d{1,2})/);
     return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}` : '';
   }).filter(Boolean))].sort().reverse();
-
   const ySet = new Set();
-  months.forEach(ym => {
-    const y = ym.split('-')[0];
-    ySet.add(y);
-  });
-
-  const years = [...ySet].sort().reverse();
-  const ySel = document.getElementById('filterYear');
+  months.forEach(ym => ySet.add(ym.split('-')[0]));
+  const years = [...ySet].sort().reverse(), ySel = document.getElementById('filterYear');
   if(!ySel) return;
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
-
-  const todayYM = new Date().toISOString().slice(0, 7);
-  const targetY = todayYM.slice(0, 4);
-  const targetM = todayYM.slice(5, 7);
-
+  const todayYM = new Date().toISOString().slice(0, 7), targetY = todayYM.slice(0, 4), targetM = todayYM.slice(5, 7);
   ySel.value = years.includes(targetY) ? targetY : years[0];
   updateNewReleasesMonthSelect(ySel.value, targetM);
 }
@@ -1280,56 +972,34 @@ function setupNewReleasesDateSelect(){
 function updateNewReleasesMonthSelect(year, selectedM=''){
   const data = rawStore.newReleases;
   if(!data || !data.rows) return;
-
   const months = [...new Set(data.rows.map(r => {
-    const val = String(r[0]||'');
-    const m = val.match(/(\d{4})[^0-9]?(\d{1,2})/);
+    const val = String(r[0]||''), m = val.match(/(\d{4})[^0-9]?(\d{1,2})/);
     return m && m[1] === year ? String(m[2]).padStart(2,'0') : '';
   }).filter(Boolean))].sort().reverse();
-
   const mSel = document.getElementById('filterMonth');
   if(!mSel) return;
   mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
-
   const targetM = (selectedM && months.includes(selectedM)) ? selectedM : months[0];
   if(targetM) mSel.value = targetM;
   filterCurrentTable();
 }
 
-function onNewReleasesYearChange(){
-  const y = document.getElementById('filterYear').value;
-  updateNewReleasesMonthSelect(y);
-}
+function onNewReleasesYearChange(){ updateNewReleasesMonthSelect(document.getElementById('filterYear').value); }
 
 function filterCurrentTable(){
   const data = rawStore[currentView];
   if(!data || !data.rows) return;
   const q = document.getElementById('tableSearch').value.toLowerCase().trim();
   let rows = data.rows;
-
-  const yVal = document.getElementById('filterYear').value;
-  const mVal = document.getElementById('filterMonth').value;
+  const yVal = document.getElementById('filterYear').value, mVal = document.getElementById('filterMonth').value;
 
   if(currentView === 'newReleases') {
     const targetYM = `${yVal}-${mVal}`;
-    if(yVal && mVal) {
-      rows = rows.filter(r => {
-        const val = String(r[0]||'');
-        return val.startsWith(targetYM);
-      });
-    }
-    const isMobileChecked = document.getElementById('mobileFilter')?.checked;
-    if(isMobileChecked) {
-      rows = rows.filter(r => {
-        const platformStr = String(r[2] ?? '').replace(/\s+/g, '');
-        return platformStr.includes('모바일');
-      });
-    }
+    if(yVal && mVal) rows = rows.filter(r => String(r[0]||'').startsWith(targetYM));
+    if(document.getElementById('mobileFilter')?.checked) rows = rows.filter(r => String(r[2] ?? '').replace(/\s+/g, '').includes('모바일'));
   } else {
     const dVal = document.getElementById('filterDay').value;
-    if(dVal) {
-      rows = rows.filter(r => rowDate(r) === dVal);
-    }
+    if(dVal) rows = rows.filter(r => rowDate(r) === dVal);
   }
 
   if(q) rows = rows.filter(r => r.some(c => String(c??'').toLowerCase().includes(q)));
@@ -1343,129 +1013,108 @@ function filterCurrentTable(){
   if (currentView === 'sales' || currentView === 'popular') {
     const headers = ['날짜', '순위', '증감', '평점', '앱이름', '장르', '개발사(퍼블리셔)'];
     document.getElementById('tableHead').innerHTML = '<tr>' + headers.map(h => `<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${h}</th>`).join('') + '</tr>';
-    
     document.getElementById('tableBody').innerHTML = rows.length ? rows.map(r => {
-      const gName = gameName(r);
-      const rDate = rowDate(r);
-      const rRank = rankOf(r) || '-';
-      const rChange = String(r[2] || '-');
-      const rScore = scoreOf(r);
-      const rScoreHtml = rScore !== '-' ? `<span class="text-amber-400 font-semibold"><i class="fa-solid fa-star text-[10px] mr-1"></i>${escapeHtml(rScore)}</span>` : '-';
-      
+      const gName = gameName(r), rDate = rowDate(r), rRank = rankOf(r) || '-', rChange = String(r[2] || '-'), rScore = scoreOf(r);
       const isNew = rDate >= '2026-09-08';
-      const rGenre = escapeHtml(String(isNew ? (r[5]||'') : (r[4]||'')));
-      const rPub = escapeHtml(String(isNew ? (r[6]||'') : (r[5]||'')));
-
       return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">
         <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(rDate)}</td>
         <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(rRank)}</td>
         <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(rChange)}</td>
-        <td class="px-4 py-2.5 whitespace-nowrap">${rScoreHtml}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">${rScore !== '-' ? `<span class="text-amber-400 font-semibold"><i class="fa-solid fa-star text-[10px] mr-1"></i>${escapeHtml(rScore)}</span>` : '-'}</td>
         <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(gName)}</td>
-        <td class="px-4 py-2.5 whitespace-nowrap">${rGenre}</td>
-        <td class="px-4 py-2.5 whitespace-nowrap">${rPub}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(String(isNew ? (r[5]||'') : (r[4]||'')))}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(String(isNew ? (r[6]||'') : (r[5]||'')))}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
   } else {
     const headers = ['출시일', '게임명', '플랫폼', '퍼블리셔', '출시유형'];
     document.getElementById('tableHead').innerHTML = '<tr>' + headers.map(h => `<th class="px-4 py-3 whitespace-nowrap text-slate-300 font-semibold border-b border-slate-800">${h}</th>`).join('') + '</tr>';
-    
     document.getElementById('tableBody').innerHTML = rows.length ? rows.map(r => {
       const gName = String(r[1]||'').trim() || '-';
-      const rDate = String(r[0]||'').trim() || '-';
-      const rPlat = String(r[2]||'').trim() || '-';
-      const rPub  = String(r[3]||'').trim() || '-';
-      const rType = String(r[4]||'').trim() || '-';
-      
       return `<tr class="border-b border-slate-900 hover:bg-slate-800/60 cursor-pointer transition-colors" onclick="openGameDetail('${escapeAttr(gName)}')">
-        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(rDate)}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(String(r[0]||'').trim() || '-')}</td>
         <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(gName)}</td>
-        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(rPlat)}</td>
-        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(rPub)}</td>
-        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(rType)}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(String(r[2]||'').trim() || '-')}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(String(r[3]||'').trim() || '-')}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">${escapeHtml(String(r[4]||'').trim() || '-')}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="100" class="text-center py-10 muted">데이터가 없습니다.</td></tr>';
   }
   
   setText('tableRowCount', `${rows.length.toLocaleString()}행`);
-  const activeDateLabel = currentView === 'newReleases' ? `${yVal}년 ${Number(mVal)}월` : document.getElementById('filterDay').value;
-  setText('dbDataDate', activeDateLabel ? `선택 기준 · ${activeDateLabel}` : `전체 ${data.rows.length.toLocaleString()}행`);
+  setText('dbDataDate', currentView === 'newReleases' ? (`선택 기준 · ${yVal}년 ${Number(mVal)}월`) : (document.getElementById('filterDay').value ? `선택 기준 · ${document.getElementById('filterDay').value}` : `전체 ${data.rows.length.toLocaleString()}행`));
 }
 
+function renderDatabase(view){
+  const data = rawStore[view];
+  if(!data) return;
+  const search = document.getElementById('tableSearch');
+  if(search) search.placeholder = view==='newReleases' ? '게임명 / 퍼블리셔 검색' : '게임명 / 장르 / 퍼블리셔 검색';
+  setText('dbTitle', {sales:'매출 순위 DB', popular:'인기 순위 DB', newReleases:'신작 정보 DB'}[view]); 
+  setText('dbDescription', {sales:'일자별 Google Play 매출 순위 원본 데이터 (평점 포함)', popular:'일자별 Google Play 인기 순위 원본 데이터 (평점 포함)', newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view]);
+
+  const mobileWrap = document.getElementById('mobileFilterWrap'), fYear = document.getElementById('filterYear'), fMonth = document.getElementById('filterMonth'), fDay = document.getElementById('filterDay');
+  if(mobileWrap) {
+    if(view === 'newReleases') {
+      mobileWrap.classList.remove('hidden'); mobileWrap.classList.add('flex'); fDay.classList.add('hidden'); 
+      fYear.onchange = onNewReleasesYearChange; fMonth.onchange = filterCurrentTable;
+      setupNewReleasesDateSelect();
+    } else {
+      mobileWrap.classList.add('hidden'); mobileWrap.classList.remove('flex'); fDay.classList.remove('hidden'); 
+      fYear.onchange = onYearChange; fMonth.onchange = onMonthChange;
+      if(document.getElementById('mobileFilter')) document.getElementById('mobileFilter').checked = false;
+      setupDateSelect();
+    }
+  }
+  document.getElementById('tableSearch').value = '';
+}
+
+/* =========================================================================
+   상세 분석 패널 (RESTORED)
+========================================================================= */
 function getMetricsForGame(data, gameNameTarget, recentDays=15){
   if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-', appId:'' };
-  const dates = getDates(data);
-  const latest = dates[dates.length-1];
+  const dates = getDates(data), latest = dates[dates.length-1], targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
   let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0, appId='';
   
-  const targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
-  const matchFn = r => rowDate(r) === latest && getGameKey(r) === targetKey;
-  
-  const latestRow = data.rows.find(matchFn);
+  const latestRow = data.rows.find(r => rowDate(r) === latest && getGameKey(r) === targetKey);
   if(latestRow) {
-    currentRank = rankOf(latestRow) || '-';
-    change = latestRow[2] !== undefined ? latestRow[2] : '-';
-    
+    currentRank = rankOf(latestRow) || '-'; change = latestRow[2] !== undefined ? latestRow[2] : '-';
     const isNewSchema = rowDate(latestRow) >= '2026-09-08';
-    appId = isNewSchema ? String(latestRow[4] || '').trim() : '';
-    genre = isNewSchema ? (latestRow[5] || '') : (latestRow[4] || '');
-    pub = isNewSchema ? (latestRow[6] || '') : (latestRow[5] || '');
-    score = scoreOf(latestRow);
+    appId = isNewSchema ? String(latestRow[4] || '').trim() : ''; genre = isNewSchema ? (latestRow[5] || '') : (latestRow[4] || '');
+    pub = isNewSchema ? (latestRow[6] || '') : (latestRow[5] || ''); score = scoreOf(latestRow);
   }
 
-  const targetDates = dates.slice(-recentDays);
-  targetDates.forEach(d => {
+  dates.slice(-recentDays).forEach(d => {
     const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
     if(row){
       const rnk = rankOf(row);
       if(rnk){
-        validRanks.push(rnk);
-        if(rnk <= 10) top10Count++;
-        
+        validRanks.push(rnk); if(rnk <= 10) top10Count++;
         const isNewSchema = rowDate(row) >= '2026-09-08';
-        if(!genre) genre = isNewSchema ? (row[5] || '') : (row[4] || '');
-        if(!pub) pub = isNewSchema ? (row[6] || '') : (row[5] || '');
-        if(!appId && isNewSchema) appId = String(row[4] || '').trim();
-        if(score === '-' || !score) score = scoreOf(row);
+        if(!genre) genre = isNewSchema ? (row[5] || '') : (row[4] || ''); if(!pub) pub = isNewSchema ? (row[6] || '') : (row[5] || '');
+        if(!appId && isNewSchema) appId = String(row[4] || '').trim(); if(score === '-' || !score) score = scoreOf(row);
       }
     }
   });
 
-  const high = validRanks.length ? Math.min(...validRanks) : '-';
-  const avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
-  
-  if (dates.length > 1 && validRanks.length > 0) {
-    const firstValidDateIndex = dates.findIndex(d => data.rows.some(r => rowDate(r) === d && getGameKey(r) === targetKey && rankOf(r)));
-    if (firstValidDateIndex === dates.length - 1) {
-      change = 'NEW';
-    }
-  } else if (dates.length === 1 && validRanks.length > 0) {
-    change = 'NEW';
-  }
-
+  const high = validRanks.length ? Math.min(...validRanks) : '-', avg = validRanks.length ? Math.round(validRanks.reduce((a,b)=>a+b,0)/validRanks.length) : '-';
+  if (dates.length > 1 && validRanks.length > 0) { if (dates.findIndex(d => data.rows.some(r => rowDate(r) === d && getGameKey(r) === targetKey && rankOf(r))) === dates.length - 1) change = 'NEW'; } 
+  else if (dates.length === 1 && validRanks.length > 0) { change = 'NEW'; }
   return { currentRank, change, high, avg, top10: top10Count, validRanks, genre, pub, score, appId };
 }
 
 function openGameDetail(targetName) {
   setText('detailTitle', targetName);
-  const salesMetrics = getMetricsForGame(rawStore.sales, targetName, 15);
-  const popMetrics = getMetricsForGame(rawStore.popular, targetName, 15);
-  
-  const finalGenre = salesMetrics.genre || popMetrics.genre || '-';
-  const finalPub = salesMetrics.pub || popMetrics.pub || '-';
-  setText('detailGenrePub', `${finalGenre} · ${finalPub}`);
-
+  const salesMetrics = getMetricsForGame(rawStore.sales, targetName, 15), popMetrics = getMetricsForGame(rawStore.popular, targetName, 15);
+  setText('detailGenrePub', `${salesMetrics.genre || popMetrics.genre || '-'} · ${salesMetrics.pub || popMetrics.pub || '-'}`);
   setText('detailSalesRank', salesMetrics.currentRank + (salesMetrics.currentRank !== '-' ? '위' : ''));
   document.getElementById('detailSalesChange').innerHTML = rankChangeBadge(salesMetrics.change, true);
   setText('detailPopRank', popMetrics.currentRank + (popMetrics.currentRank !== '-' ? '위' : ''));
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
+  setText('detailScoreBadge', (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-');
 
-  const finalScore = (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-';
-  setText('detailScoreBadge', finalScore);
-
-  const finalAppId = salesMetrics.appId || popMetrics.appId || '';
-  const linkEl = document.getElementById('detailPlayStoreLink');
-  
+  const finalAppId = salesMetrics.appId || popMetrics.appId || '', linkEl = document.getElementById('detailPlayStoreLink');
   if (finalAppId && finalAppId !== '-' && finalAppId.includes('.')) {
       linkEl.href = `https://play.google.com/store/apps/details?id=${encodeURIComponent(finalAppId)}`;
       linkEl.innerHTML = `<i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 이동`;
@@ -1474,120 +1123,45 @@ function openGameDetail(targetName) {
       linkEl.innerHTML = `<i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 검색`;
   }
 
-  setText('detailSalesHigh', salesMetrics.high + (salesMetrics.high !== '-' ? '위' : ''));
-  setText('detailSalesAvg', salesMetrics.avg + (salesMetrics.avg !== '-' ? '위' : ''));
-  setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : ''));
-  setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
+  setText('detailSalesHigh', salesMetrics.high + (salesMetrics.high !== '-' ? '위' : '')); setText('detailSalesAvg', salesMetrics.avg + (salesMetrics.avg !== '-' ? '위' : ''));
+  setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : '')); setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
 
   const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-15);
   const targetKey = targetName.toLowerCase().replace(/\s+/g, '');
-  
-  const getRankData = (data, d) => {
-    if(!data || !data.rows) return null;
-    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
-    return row ? rankOf(row) : null;
-  };
-
-  const getScoreData = (data, d) => {
-    if(!data || !data.rows) return null;
-    const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
-    if(!row) return null;
-    const val = parseFloat(scoreOf(row));
-    return (!isNaN(val) && val >= 0 && val <= 5) ? val : null;
-  };
-
-  const rankDatasets = [
-    { label: '매출 순위', clip: false, data: allDates.map(d => getRankData(rawStore.sales, d)), borderColor: '#818cf8', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: .25, spanGaps: true },
-    { label: '인기 순위', clip: false, data: allDates.map(d => getRankData(rawStore.popular, d)), borderColor: '#34d399', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4,4], pointRadius: 2, tension: .25, spanGaps: true }
-  ];
+  const getRankData = (data, d) => { const row = data?.rows?.find(r => rowDate(r) === d && getGameKey(r) === targetKey); return row ? rankOf(row) : null; };
+  const getScoreData = (data, d) => { const row = data?.rows?.find(r => rowDate(r) === d && getGameKey(r) === targetKey); if(!row) return null; const val = parseFloat(scoreOf(row)); return (!isNaN(val) && val >= 0 && val <= 5) ? val : null; };
 
   if(detailChartInst) detailChartInst.destroy();
   detailChartInst = new Chart(document.getElementById('detailChart').getContext('2d'), {
-    type: 'line', data: { labels: allDates, datasets: rankDatasets },
+    type: 'line', data: { labels: allDates, datasets: [
+      { label: '매출 순위', clip: false, data: allDates.map(d => getRankData(rawStore.sales, d)), borderColor: '#818cf8', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: .25, spanGaps: true },
+      { label: '인기 순위', clip: false, data: allDates.map(d => getRankData(rawStore.popular, d)), borderColor: '#34d399', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4,4], pointRadius: 2, tension: .25, spanGaps: true }
+    ] },
     options: {
       layout: { padding: { top: 10 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw??'-'}위` } } },
-      scales: { 
-        x: { 
-          grid: { display: false }, 
-          ticks: { 
-            color: '#94a3b8', 
-            maxTicksLimit: 6,
-            callback: function(val) {
-              const label = this.getLabelForValue(val);
-              return label ? label.substring(5).replace('-', '/') : '';
-            }
-          } 
-        }, 
-        y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } 
-      }
+      scales: { x: { grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 6, callback: function(val) { const label = this.getLabelForValue(val); return label ? label.substring(5).replace('-', '/') : ''; } } }, y: { reverse: true, min: 1, suggestedMax: 100, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#94a3b8' } } }
     }
   });
-
-  const scoreDatasets = [
-    { 
-      label: '통합 평점', 
-      clip: false, 
-      data: allDates.map(d => getScoreData(rawStore.sales, d) || getScoreData(rawStore.popular, d) || null), 
-      borderColor: '#fbbf24', 
-      backgroundColor: 'rgba(251, 191, 36, 0.1)', 
-      borderWidth: 2, 
-      pointRadius: 2, 
-      tension: 0, 
-      spanGaps: true,
-      fill: true
-    }
-  ];
 
   if(detailScoreChartInst) detailScoreChartInst.destroy();
   detailScoreChartInst = new Chart(document.getElementById('detailScoreChart').getContext('2d'), {
-    type: 'line', data: { labels: allDates, datasets: scoreDatasets },
+    type: 'line', data: { labels: allDates, datasets: [{ label: '통합 평점', clip: false, data: allDates.map(d => getScoreData(rawStore.sales, d) || getScoreData(rawStore.popular, d) || null), borderColor: '#fbbf24', backgroundColor: 'rgba(251, 191, 36, 0.1)', borderWidth: 2, pointRadius: 2, tension: 0, spanGaps: true, fill: true }] },
     options: {
-      layout: { padding: { top: 15, bottom: 5 } }, 
-      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 15, bottom: 5 } }, responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `평점: ${c.raw??'-'}` } } },
-      scales: { 
-        x: { 
-          display: true, 
-          grid: { display: false },
-          ticks: {
-            color: '#94a3b8',
-            maxTicksLimit: 6,
-            callback: function(val) {
-              const label = this.getLabelForValue(val);
-              return label ? label.substring(5).replace('-', '/') : '';
-            }
-          }
-        }, 
-        y: { 
-          min: 0, 
-          max: 5, 
-          grid: { color: 'rgba(51,65,85,.35)' }, 
-          ticks: { 
-            color: '#fbbf24', 
-            stepSize: 1,
-            autoSkip: false 
-          } 
-        } 
-      }
+      scales: { x: { display: true, grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 6, callback: function(val) { const label = this.getLabelForValue(val); return label ? label.substring(5).replace('-', '/') : ''; } } }, y: { min: 0, max: 5, grid: { color: 'rgba(51,65,85,.35)' }, ticks: { color: '#fbbf24', stepSize: 1, autoSkip: false } } }
     }
   });
 
-  const overlay = document.getElementById('detailOverlay');
-  const panel = document.getElementById('detailPanel');
-  overlay.classList.remove('hidden');
-  setTimeout(() => {
-    overlay.classList.remove('opacity-0');
-    panel.classList.remove('translate-x-full');
-  }, 10);
+  document.getElementById('detailOverlay').classList.remove('hidden');
+  setTimeout(() => { document.getElementById('detailOverlay').classList.remove('opacity-0'); document.getElementById('detailPanel').classList.remove('translate-x-full'); }, 10);
 }
 
 function closeGameDetail() {
-  const overlay = document.getElementById('detailOverlay');
-  const panel = document.getElementById('detailPanel');
-  panel.classList.add('translate-x-full');
-  overlay.classList.add('opacity-0');
-  setTimeout(() => overlay.classList.add('hidden'), 300);
+  document.getElementById('detailPanel').classList.add('translate-x-full');
+  document.getElementById('detailOverlay').classList.add('opacity-0');
+  setTimeout(() => document.getElementById('detailOverlay').classList.add('hidden'), 300);
 }
 
 async function fetchAllData(){
@@ -1596,27 +1170,14 @@ async function fetchAllData(){
   status.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> 동기화 중';
   btn.disabled=true;
   try{
-    const [sales,popular,news]=await Promise.all([
-      fetchSheetData(SHEETS.sales,1), 
-      fetchSheetData(SHEETS.popular,1), 
-      fetchSheetData(SHEETS.newReleases,1)
-    ]);
+    const [sales,popular,news]=await Promise.all([ fetchSheetData(SHEETS.sales,1), fetchSheetData(SHEETS.popular,1), fetchSheetData(SHEETS.newReleases,1) ]);
     rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news;
-    
-    const d = new Date();
-    currentCalYear = d.getFullYear();
-    currentCalMonth = d.getMonth() + 1;
-
-    renderToday(); 
-    populateGameNameOptions();
-    setupSearchDateSelect();
-    
+    const d = new Date(); currentCalYear = d.getFullYear(); currentCalMonth = d.getMonth() + 1;
+    renderToday(); populateGameNameOptions(); setupSearchDateSelect();
     if(currentView==='sales'||currentView==='popular'||currentView==='newReleases')renderDatabase(currentView);
     if(currentView==='search')renderSearchCharts();
     if(currentView==='calendar')renderCalendar();
-    
     document.getElementById('view-dashboard').classList.remove('hidden');
-    
     status.className='text-xs px-3 py-1.5 rounded-full bg-emerald-950 text-emerald-300';
     status.innerHTML='<span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1"></span> 정상 동기화';
   }catch(err){
