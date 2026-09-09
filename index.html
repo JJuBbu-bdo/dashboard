@@ -225,9 +225,10 @@ select option { background-color: #0f172a; color: #f1f5f9; }
   <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
     <div class="flex items-center gap-3">
       <button onclick="changeCalMonth(-1)" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
-      <h2 id="calMonthTitle" class="text-xl font-bold w-28 text-center">-</h2>
+      <!-- [수정됨] 월 제목 줄바꿈 방지 적용 (min-w 넓힘, whitespace-nowrap 추가) -->
+      <h2 id="calMonthTitle" class="text-xl font-bold w-36 whitespace-nowrap text-center">-</h2>
       <button onclick="changeCalMonth(1)" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
-      <button onclick="resetCalMonth()" class="text-xs ml-2 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">이번 달</button>
+      <button onclick="resetCalMonth()" class="text-xs ml-2 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors shrink-0">이번 달</button>
     </div>
     
     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -238,7 +239,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         <span class="w-px h-4 bg-slate-600"></span>
         <span>PC/콘솔: <strong id="calStatPC" class="text-slate-300">0</strong></span>
       </div>
-      <!-- 필터 이름 텍스트 변경 반영 -->
       <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
         <input type="checkbox" id="calMobileOnly" checked onchange="renderCalendar()" class="accent-indigo-500"> 모바일(멀티 플랫폼)만 보기
       </label>
@@ -463,7 +463,6 @@ const rawStore = {sales:null,popular:null,newReleases:null};
 let currentView='dashboard';
 let todayGenreDonutInst = null; 
 
-// 캘린더 전용 상태 변수
 let currentCalYear = new Date().getFullYear();
 let currentCalMonth = new Date().getMonth() + 1;
 const todayStrForCal = new Date().toISOString().slice(0, 10);
@@ -560,13 +559,10 @@ function rankOf(row) {
 function scoreOf(row) {
   if(!row) return '-';
   const rDate = rowDate(row);
-  
   if (rDate < '2026-09-08') return '-';
-  
   let val = row[8];
   let str = String(val ?? '').trim();
   let num = parseFloat(str);
-
   if (!isNaN(num) && (num > 5 || num < 0)) {
     let fallbackVal = row[7];
     let fallbackNum = parseFloat(String(fallbackVal ?? '').trim());
@@ -575,7 +571,6 @@ function scoreOf(row) {
     }
     return '-';
   }
-  
   return (str && str !== '-' && str !== '0') ? str : '-';
 }
 
@@ -614,7 +609,6 @@ function buildSnapshotFallback(salesData, popData) {
     const isNewSchema = rowDate(r) >= '2026-09-08';
     const genre = isNewSchema ? r[5] : r[4];
     const pub = isNewSchema ? r[6] : r[5];
-    
     return {
       rank: val.rank,
       name: String(r[3] || '-').trim(),
@@ -724,7 +718,6 @@ function renderRankList(elId, items, {showMeta=true}={}) {
     el.innerHTML = '<li class="text-xs muted py-2">데이터 없음</li>';
     return;
   }
-
   el.innerHTML = items.map(it => {
     const scoreVal = it.score || getLatestScore(it.name);
     const scoreBadge = (scoreVal && scoreVal !== '-') 
@@ -732,12 +725,10 @@ function renderRankList(elId, items, {showMeta=true}={}) {
            <i class="fa-solid fa-star text-[9px] mr-1"></i>${escapeHtml(scoreVal)}
          </span>` 
       : '';
-
     let displayChange = it.change;
     if (elId === 'newEntriesList' && (!displayChange || displayChange === '-' || displayChange === '0')) {
       displayChange = 'NEW';
     }
-
     return `
       <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0 hover:bg-slate-800/30 cursor-pointer rounded px-1.5 transition-colors" onclick="openGameDetail('${escapeAttr(it.name)}')">
         <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -774,14 +765,12 @@ function renderGenreBars(elId,arr){
 function renderToday(){
   const p = buildSnapshotFallback(rawStore.sales, rawStore.popular);
   if(!p) return;
-  
   const displayDate = p.asOfDate || latestDate(rawStore.sales) || new Date().toISOString().slice(0, 10);
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
 
   const freezeWarningEl = document.getElementById('freezeWarning');
   const freezeWarningText = document.getElementById('freezeWarningText');
-  
   if (freezeWarningEl && freezeWarningText) {
     const checkFrozen = (list) => {
       if (!list || list.length === 0) return false;
@@ -791,17 +780,14 @@ function renderToday(){
       }).length;
       return (frozenCount / list.length) >= 0.9; 
     };
-
     const isPopFrozen = checkFrozen(p.popularTop30);
     const isSalesFrozen = checkFrozen(p.salesTop30);
-
     if (isPopFrozen || isSalesFrozen) {
       freezeWarningEl.classList.remove('hidden');
       let targetStr = "";
       if (isPopFrozen && isSalesFrozen) targetStr = "인기 및 매출";
       else if (isPopFrozen) targetStr = "인기";
       else if (isSalesFrozen) targetStr = "매출";
-      
       freezeWarningText.innerHTML = `⚠️ 구글 ${targetStr} 순위 갱신 지연 감지됨`;
     } else {
       freezeWarningEl.classList.add('hidden');
@@ -864,7 +850,6 @@ function renderToday(){
         layout: { padding: 0 }
       }
     });
-
     document.getElementById('todayGenreLegend').innerHTML = top3Genres.map((g, i) => {
       const pct = totalCount > 0 ? ((g.count / totalCount) * 100).toFixed(0) : 0;
       return `<div class="truncate flex items-center text-slate-300"><span class="w-1.5 h-1.5 inline-block rounded-full mr-1.5 shrink-0" style="background:${donutColors[i]}"></span><span class="truncate">${g.genre} ${pct}%</span></div>`;
@@ -895,9 +880,6 @@ function switchView(view){
   if(view==='calendar')renderCalendar();
 }
 
-/* =========================================================================
-   신작 달력 로직
-========================================================================= */
 function changeCalMonth(offset) {
   currentCalMonth += offset;
   if (currentCalMonth > 12) { currentCalMonth = 1; currentCalYear++; }
@@ -992,7 +974,6 @@ function renderCalendar() {
   for(let w=0; w<weeksCount; w++) {
     const startDay = (w * 7) - firstDay + 1;
     const endDay = startDay + 6;
-    
     const actualStart = Math.max(1, startDay);
     const actualEnd = Math.min(daysInMonth, endDay);
     
@@ -1000,17 +981,30 @@ function renderCalendar() {
       const weekGames = monthGames.filter(g => g.day >= actualStart && g.day <= actualEnd);
       if (weekGames.length > 0) {
         const wMobileCnt = weekGames.filter(g => g.isMobile).length;
-        const topTitles = weekGames.slice(0, 3).map(g => `<span class="text-slate-300 font-medium">${escapeHtml(g.name)}</span>`).join(', ');
+        
+        // [수정됨] 1. 개별 칩(Chip) 태그 UI 변환 및 2. +N종 더보기 (툴팁) 적용
+        const topGames = weekGames.slice(0, 3);
+        const remainingGames = weekGames.slice(3);
+        
+        let chipsHtml = topGames.map(g => {
+            const colorClass = g.isMobile ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700/50 text-slate-300 border-slate-600/50';
+            return `<span class="inline-block px-2 py-0.5 rounded border ${colorClass} text-[10px] mr-1 mb-1 truncate max-w-[150px]" title="${escapeAttr(g.name)}">${escapeHtml(g.name)}</span>`;
+        }).join('');
+
+        let moreHtml = '';
+        if (remainingGames.length > 0) {
+            const tooltipText = remainingGames.map(g => g.name).join('&#10;');
+            moreHtml = `<span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] cursor-help mb-1" title="${escapeAttr(tooltipText)}">+${remainingGames.length}종 더보기</span>`;
+        }
         
         weeklyHtml += `
           <div class="border-b border-slate-800 pb-3 last:border-0">
-            <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-bold text-indigo-300">${w+1}주차 <span class="muted font-normal ml-1">(${currentCalMonth}/${actualStart} ~ ${currentCalMonth}/${actualEnd})</span></span>
-              <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${wMobileCnt}</span></span>
+              <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700 shrink-0">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${wMobileCnt}</span></span>
             </div>
-            <!-- 가독성 개선: 글자색 밝게(text-slate-300), 줄간격 여유롭게(leading-relaxed) -->
-            <div class="text-xs text-slate-300 leading-relaxed mt-1">
-              주요작: ${topTitles}${weekGames.length > 3 ? ` 등` : ''}
+            <div class="flex flex-wrap gap-y-0.5">
+              ${chipsHtml}${moreHtml}
             </div>
           </div>
         `;
@@ -1184,9 +1178,6 @@ function onSearchMonthChange() {
   renderSearchCharts();
 }
 
-/* =========================================================================
-   DB 뷰 전용 필터 및 렌더링 로직 (RESTORED)
-========================================================================= */
 function setupDateSelect(){
   const data = rawStore[currentView];
   if(!data) return;
@@ -1401,46 +1392,6 @@ function filterCurrentTable(){
   setText('dbDataDate', activeDateLabel ? `선택 기준 · ${activeDateLabel}` : `전체 ${data.rows.length.toLocaleString()}행`);
 }
 
-function renderDatabase(view){
-  const data = rawStore[view];
-  if(!data) return;
-  const search = document.getElementById('tableSearch');
-  if(search) search.placeholder = view==='newReleases' ? '게임명 / 퍼블리셔 검색' : '게임명 / 장르 / 퍼블리셔 검색';
-  const title = {sales:'매출 순위 DB', popular:'인기 순위 DB', newReleases:'신작 정보 DB'}[view];
-  const desc = {sales:'일자별 Google Play 매출 순위 원본 데이터 (평점 포함)', popular:'일자별 Google Play 인기 순위 원본 데이터 (평점 포함)', newReleases:'출시일 / 게임명 / 플랫폼 / 퍼블리셔 / 출시유형'}[view];
-  setText('dbTitle', title); setText('dbDescription', desc);
-
-  const mobileWrap = document.getElementById('mobileFilterWrap');
-  const fYear = document.getElementById('filterYear');
-  const fMonth = document.getElementById('filterMonth');
-  const fDay = document.getElementById('filterDay');
-
-  if(mobileWrap) {
-    if(view === 'newReleases') {
-      mobileWrap.classList.remove('hidden');
-      mobileWrap.classList.add('flex');
-      fDay.classList.add('hidden'); 
-      fYear.onchange = onNewReleasesYearChange;
-      fMonth.onchange = filterCurrentTable;
-      setupNewReleasesDateSelect();
-    } else {
-      mobileWrap.classList.add('hidden');
-      mobileWrap.classList.remove('flex');
-      fDay.classList.remove('hidden'); 
-      fYear.onchange = onYearChange;
-      fMonth.onchange = onMonthChange;
-      const chk = document.getElementById('mobileFilter');
-      if(chk) chk.checked = false;
-      setupDateSelect();
-    }
-  }
-
-  document.getElementById('tableSearch').value = '';
-}
-
-/* =========================================================================
-   상세 분석 패널 (RESTORED)
-========================================================================= */
 function getMetricsForGame(data, gameNameTarget, recentDays=15){
   if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-', appId:'' };
   const dates = getDates(data);
@@ -1652,7 +1603,6 @@ async function fetchAllData(){
     ]);
     rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news;
     
-    // 현재 날짜 기준으로 캘린더 초기 세팅
     const d = new Date();
     currentCalYear = d.getFullYear();
     currentCalMonth = d.getMonth() + 1;
