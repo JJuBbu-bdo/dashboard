@@ -631,22 +631,40 @@ function buildSnapshotFallback(salesData, popData) {
     const key = getGameKey(x.name), pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
     return { ...x, diff: pRank !== null ? pRank - x.rank : 0, change: getChange(key, x.rank, prevSalesMap) };
   });
-  
-  const countGenres = (list) => {
-    const counts = {};
-    list.slice(0, 100).forEach(x => counts[x.genre || '기타'] = (counts[x.genre || '기타'] || 0) + 1);
-    return Object.entries(counts).map(([genre, count]) => ({genre, count})).sort((a,b) => b.count - a.count);
+
+  // [이전일 대비 장르 증감 계산 함수 추가]
+  const countGenresWithTrend = (currentList, prevMapData, prevDate) => {
+    const currentCounts = {};
+    currentList.slice(0, 100).forEach(x => currentCounts[x.genre || '기타'] = (currentCounts[x.genre || '기타'] || 0) + 1);
+    
+    const prevCounts = {};
+    if (prevDate && prevMapData && prevMapData.rows) {
+      prevMapData.rows.filter(r => rowDate(r) === prevDate).forEach(r => {
+        const isNewSchema = rowDate(r) >= '2026-09-08';
+        const g = String(isNewSchema ? r[5] : r[4] || '기타').trim();
+        prevCounts[g] = (prevCounts[g] || 0) + 1;
+      });
+    }
+
+    return Object.entries(currentCounts).map(([genre, count]) => {
+      const prevCount = prevCounts[genre] !== undefined ? prevCounts[genre] : count;
+      const trendDiff = count - prevCount;
+      return { genre, count, trendDiff };
+    }).sort((a,b) => b.count - a.count);
   };
   
+  const prevSalesDate = prev;
+  const salesGenreProcessed = countGenresWithTrend(salesList, salesData, prevSalesDate);
+  const popularGenreProcessed = countGenresWithTrend(popList, popData, prev);
+
   return {
     asOfDate: latest,
     popularTop10: popularTop30.slice(0, 10), salesTop10: salesTop30.slice(0, 10),
     popularTop30, salesTop30, 
     newEntries: popList.filter(x => prev && !prevPopMap.has(getGameKey(x.name))).slice(0, 10).map(x => ({...x, change: 'NEW'})), 
     salesRising: salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10), 
-    // [수정 완료] 하락 폭이 큰 순서(마이너스 값이 더 큰 것)가 위로 오도록 내림차순 정렬 수정 (a.diff - b.diff)
-    salesFalling: salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10), 
-    popularGenre: countGenres(popList), salesGenre: countGenres(salesList)
+    salesFalling: salesChanges.filter(x => x.diff < 0).sort((a,b) => a.val - b.val ? a.diff - b.diff : 0).sort((a,b) => a.diff - b.diff).slice(0, 10), 
+    popularGenre: popularGenreProcessed, salesGenre: salesGenreProcessed
   };
 }
 
@@ -709,16 +727,39 @@ function renderRankList(elId, items, {showMeta=true}={}) {
   }).join('');
 }
 
-function renderGenreBars(elId,arr){
-  const el=document.getElementById(elId);
-  if(!arr || !arr.length){el.innerHTML='<div class="text-xs muted py-2">데이터 없음</div>';return;}
-  const max=Math.max(...arr.map(a=>a.count),1);
-  el.innerHTML=arr.map(a=>`
-    <div class="flex items-center gap-2 py-1">
-      <span class="text-[11px] w-16 shrink-0 truncate">${escapeHtml(a.genre)}</span>
-      <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-indigo-500/70" style="width:${(a.count/max*100).toFixed(0)}%"></div></div>
-      <span class="text-[11px] muted w-6 text-right">${a.count}</span>
-    </div>`).join('');
+// [장르 비중 바 차트 업그레이드] 퍼센티지, TOP 3 포인트 컬러, 전일 대비 증감 뱃지 적용
+function renderGenreBars(elId, arr) {
+  const el = document.getElementById(elId);
+  if (!arr || !arr.length) { el.innerHTML = '<div class="text-xs muted py-2">데이터 없음</div>'; return; }
+  const max = Math.max(...arr.map(a => a.count), 1);
+  const totalCount = arr.reduce((sum, a) => sum + a.count, 0) || 1;
+
+  // 상위 TOP 3 컬러 포인트 지정 (1위: 에메랄드, 2위: 인디고, 3위: 스카이, 나머지: 슬레이트 그라데이션)
+  const topColors = ['#34d399', '#818cf8', '#38bdf8'];
+
+  el.innerHTML = arr.map((a, idx) => {
+    const percent = ((a.count / totalCount) * 100).toFixed(1);
+    const barColor = idx < 3 ? topColors[idx] : '#475569';
+    
+    let trendBadge = '';
+    if (a.trendDiff > 0) {
+      trendBadge = `<span class="text-[10px] rank-up ml-1 font-semibold" title="전일 대비 +${a.trendDiff}개">▲${a.trendDiff}</span>`;
+    } else if (a.trendDiff < 0) {
+      trendBadge = `<span class="text-[10px] rank-down ml-1 font-semibold" title="전일 대비 ${a.trendDiff}개">▼${Math.abs(a.trendDiff)}</span>`;
+    }
+
+    return `
+      <div class="flex items-center gap-2 py-1.5">
+        <span class="text-[11px] w-20 shrink-0 truncate text-slate-200 font-medium">${escapeHtml(a.genre)}</span>
+        <div class="flex-1 h-2.5 bg-slate-800/80 rounded-full overflow-hidden p-0.5">
+          <div class="h-full rounded-full transition-all duration-500" style="width:${(a.count / max * 100).toFixed(0)}%; background:${barColor};"></div>
+        </div>
+        <div class="flex items-center justify-end w-20 shrink-0 text-[11px]">
+          <span class="font-bold text-slate-100 mr-1.5">${a.count}<span class="text-[9px] muted font-normal ml-0.5">(${percent}%)</span></span>
+          ${trendBadge}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function renderToday(){
