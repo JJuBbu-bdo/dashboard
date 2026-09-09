@@ -24,7 +24,7 @@ body { background:#080d18; }
 .summary-card-hover:hover { background:rgba(30,41,59,.9); transform: translateY(-2px); border-color: rgba(99, 102, 241, 0.4); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 select option { background-color: #0f172a; color: #f1f5f9; }
 
-/* 캘린더 전용 스타일 - 가독성 대폭 개선 */
+/* 캘린더 전용 스타일 */
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background-color: rgba(71,85,105,.3); border: 1px solid rgba(71,85,105,.3); border-radius: 0.5rem; overflow: hidden; }
 .cal-header { background: rgba(30,41,59,.9); text-align: center; padding: 10px 0; font-size: 11px; font-weight: 600; color: #94a3b8; }
 .cal-cell { background: #0f172a; min-height: 120px; padding: 6px; display: flex; flex-direction: column; gap: 4px; transition: background 0.2s; }
@@ -36,6 +36,16 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 .cal-item.mobile { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; border-color: rgba(16, 185, 129, 0.4); }
 .cal-item.pc { background: rgba(148, 163, 184, 0.25); color: #f1f5f9; border-color: rgba(148, 163, 184, 0.4); }
 .cal-empty { background: rgba(15,23,42,0.5); }
+
+/* A안 커스텀 툴팁 스타일 */
+.custom-tooltip-wrap { position: relative; display: inline-block; }
+.custom-tooltip-content {
+  visibility: hidden; position: absolute; z-index: 50; bottom: 125%; left: 0;
+  background-color: #1e293b; color: #f1f5f9; text-align: left; padding: 8px 12px;
+  border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.4); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+  font-size: 10px; white-space: nowrap; opacity: 0; transition: opacity 0.15s ease; pointer-events: none;
+}
+.custom-tooltip-wrap:hover .custom-tooltip-content { visibility: visible; opacity: 1; }
 </style>
 </head>
 
@@ -94,7 +104,6 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       <span id="snapshotDate" class="text-xs muted">-</span>
     </div>
     
-    <!-- 갱신 지연 감지 경고 배지 -->
     <div id="freezeWarning" class="hidden mb-4 flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-medium">
       <i class="fa-solid fa-triangle-exclamation text-lg"></i> 
       <div>
@@ -226,7 +235,7 @@ select option { background-color: #0f172a; color: #f1f5f9; }
       <button onclick="resetCalMonth()" class="text-xs ml-2 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors shrink-0">이번 달</button>
     </div>
     
-    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
       <div id="calStatsBadge" class="text-xs px-4 py-2 rounded-lg bg-slate-800/80 border border-slate-700 font-medium flex gap-3">
         <span>총 신작: <strong id="calStatTotal" class="text-indigo-400">0</strong></span>
         <span class="w-px h-4 bg-slate-600"></span>
@@ -234,9 +243,14 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         <span class="w-px h-4 bg-slate-600"></span>
         <span>PC/콘솔: <strong id="calStatPC" class="text-slate-300">0</strong></span>
       </div>
-      <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
-        <input type="checkbox" id="calMobileOnly" checked onchange="renderCalendar()" class="accent-indigo-500"> 모바일(멀티 플랫폼)만 보기
-      </label>
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
+          <input type="checkbox" id="calMobileOnly" checked onchange="renderCalendar()" class="accent-indigo-500"> 모바일(멀티 플랫폼)만 보기
+        </label>
+        <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
+          <input type="checkbox" id="calOfficialOnly" onchange="renderCalendar()" class="accent-indigo-500"> 정식출시만 보기
+        </label>
+      </div>
     </div>
   </div>
 
@@ -677,7 +691,6 @@ function renderToday(){
     }
   }
 
-  // ==== [복구된 개별 할당 방식] ====
   const topPop=p.popularTop10[0];
   setText('todayPopularTop', topPop ? topPop.name : '-');
   setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
@@ -709,7 +722,6 @@ function renderToday(){
   const riseScore = topRise ? getLatestScore(topRise.name) : null;
   document.getElementById('todayRisingScore').innerHTML = riseScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${riseScore}` : '';
   document.getElementById('cardRising1').onclick = () => { if(topRise) openGameDetail(topRise.name); };
-  // =================================
 
   if(todayGenreDonutInst) todayGenreDonutInst.destroy();
   const top3Genres = p.salesGenre.slice(0, 3), totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0), donutColors = ['#fbbf24', '#34d399', '#818cf8'];
@@ -767,15 +779,31 @@ function renderCalendar() {
   }
 
   const isMobileOnly = document.getElementById('calMobileOnly').checked;
+  const isOfficialOnly = document.getElementById('calOfficialOnly').checked;
   const targetYM = `${currentCalYear}-${String(currentCalMonth).padStart(2, '0')}`;
   
   let monthGames = [];
   data.rows.forEach(r => {
     const rDate = String(r[0]||'').trim();
     if(rDate.startsWith(targetYM)) {
-      const platformStr = String(r[2] || '').trim(), isMobile = platformStr.replace(/\s+/g, '').includes('모바일');
+      const platformStr = String(r[2] || '').trim();
+      const typeStr = String(r[4] || '').trim();
+      const isMobile = platformStr.replace(/\s+/g, '').includes('모바일');
+      const isOfficial = typeStr.replace(/\s+/g, '').includes('정식출시');
+      
       if(isMobileOnly && !isMobile) return;
-      monthGames.push({ date: rDate, day: parseInt(rDate.split('-')[2], 10), name: String(r[1]||'-').trim(), platform: platformStr, publisher: String(r[3]||'-').trim(), type: String(r[4]||'-').trim(), isMobile: isMobile });
+      if(isOfficialOnly && !isOfficial) return;
+      
+      monthGames.push({ 
+        date: rDate, 
+        day: parseInt(rDate.split('-')[2], 10), 
+        name: String(r[1]||'-').trim(), 
+        platform: platformStr, 
+        publisher: String(r[3]||'-').trim(), 
+        type: typeStr, 
+        isMobile: isMobile,
+        isOfficial: isOfficial
+      });
     }
   });
 
@@ -791,7 +819,10 @@ function renderCalendar() {
   
   for(let d=1; d<=daysInMonth; d++) {
     const isToday = `${targetYM}-${String(d).padStart(2, '0')}` === todayVal;
-    let itemsHtml = monthGames.filter(g => g.day === d).map(g => `<div class="cal-item ${g.isMobile ? 'mobile' : 'pc'}" title="${escapeAttr(`플랫폼: ${g.platform}\n퍼블리셔: ${g.publisher}\n유형: ${g.type}`)}">${escapeHtml(g.name)}</div>`).join('');
+    let itemsHtml = monthGames.filter(g => g.day === d).map(g => {
+      const typeBadge = !g.isOfficial ? `<span class="opacity-70 text-[9px] mr-0.5">[테스트]</span>` : '';
+      return `<div class="cal-item ${g.isMobile ? 'mobile' : 'pc'}" title="${escapeAttr(`플랫폼: ${g.platform}\n유형: ${g.type}\n퍼블리셔: ${g.publisher}`)}">${typeBadge}${escapeHtml(g.name)}</div>`;
+    }).join('');
     gridHtml += `<div class="cal-cell ${isToday ? 'today' : ''}"><div class="cal-date">${d}</div>${itemsHtml}</div>`;
   }
   
@@ -807,12 +838,29 @@ function renderCalendar() {
     if (actualStart <= daysInMonth && actualEnd >= 1) {
       const weekGames = monthGames.filter(g => g.day >= actualStart && g.day <= actualEnd);
       if (weekGames.length > 0) {
-        let chipsHtml = weekGames.slice(0, 3).map(g => `<span class="inline-block px-2 py-0.5 rounded border ${g.isMobile ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700/50 text-slate-300 border-slate-600/50'} text-[10px] mr-1 mb-1 truncate max-w-[150px]" title="${escapeAttr(g.name)}">${escapeHtml(g.name)}</span>`).join('');
-        let moreHtml = weekGames.length > 3 ? `<span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] cursor-help mb-1" title="${escapeAttr(weekGames.slice(3).map(g => g.name).join('&#10;'))}">+${weekGames.length-3}종 더보기</span>` : '';
+        let chipsHtml = weekGames.slice(0, 3).map(g => {
+          const typePrefix = !g.isOfficial ? `<span class="opacity-70 text-[9px] mr-0.5">[테스트]</span>` : '';
+          const colorClass = g.isMobile ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700/50 text-slate-300 border-slate-600/50';
+          return `<span class="inline-block px-2 py-0.5 rounded border ${colorClass} text-[10px] mr-1 mb-1 truncate max-w-[150px]" title="${escapeAttr(g.name)}">${typePrefix}${escapeHtml(g.name)}</span>`;
+        }).join('');
+
+        let moreHtml = '';
+        if (weekGames.length > 3) {
+          const remainingList = weekGames.slice(3).map(g => `${!g.isOfficial ? '[테스트] ' : ''}${g.name} (${g.platform})`).join('<br>');
+          moreHtml = `
+            <div class="custom-tooltip-wrap inline-block">
+              <span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] cursor-help mb-1">+${weekGames.length-3}종 더보기</span>
+              <div class="custom-tooltip-content">${remainingList}</div>
+            </div>`;
+        }
+
         weeklyHtml += `
           <div class="border-b border-slate-800 pb-3 last:border-0">
-            <div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-indigo-300">${w+1}주차 <span class="muted font-normal ml-1">(${currentCalMonth}/${actualStart} ~ ${currentCalMonth}/${actualEnd})</span></span><span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700 shrink-0">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${weekGames.filter(g => g.isMobile).length}</span></span></div>
-            <div class="flex flex-wrap gap-y-0.5">${chipsHtml}${moreHtml}</div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-indigo-300">${w+1}주차 <span class="muted font-normal ml-1">(${currentCalMonth}/${actualStart} ~ ${currentCalMonth}/${actualEnd})</span></span>
+              <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700 shrink-0">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${weekGames.filter(g => g.isMobile).length}</span></span>
+            </div>
+            <div class="flex flex-wrap gap-y-0.5 items-center">${chipsHtml}${moreHtml}</div>
           </div>`;
       }
     }
