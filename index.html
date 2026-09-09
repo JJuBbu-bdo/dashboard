@@ -554,7 +554,6 @@ function buildSnapshotFallback(salesData, popData) {
     return prevRank > itemRank ? `▲ ${prevRank - itemRank}` : `▼ ${itemRank - prevRank}`;
   };
   
-  // 안정성을 위해 TOP 30개까지 추출하여 프리징 검증에 사용
   const popularTop30 = popList.slice(0, 30).map(x => {
     const key = x.name.toLowerCase().replace(/\s+/g, '');
     return {...x, change: getChange(key, x.rank, prevPopMap)};
@@ -699,13 +698,22 @@ function renderToday(){
   setText('todayLabel', `Today · ${displayDate}`);
   setText('snapshotDate', `기준일: ${displayDate}`);
 
-  // [핵심] 상위 30개를 기준으로 한 강력한 지연(프리징) 감지 및 동적 텍스트 로직
+  // [수정] 30개 중 90%(27개) 이상 변동이 없으면 지연으로 판단하는 스마트 감지
   const freezeWarningEl = document.getElementById('freezeWarning');
   const freezeWarningText = document.getElementById('freezeWarningText');
   
   if (freezeWarningEl && freezeWarningText) {
-    const isPopFrozen = p.popularTop30.length > 0 && p.popularTop30.every(item => item.change === '-' || item.change === '0' || item.change.includes('유지'));
-    const isSalesFrozen = p.salesTop30.length > 0 && p.salesTop30.every(item => item.change === '-' || item.change === '0' || item.change.includes('유지'));
+    const checkFrozen = (list) => {
+      if (!list || list.length === 0) return false;
+      const frozenCount = list.filter(item => {
+        const c = String(item.change || '').trim();
+        return c === '-' || c === '0' || c.includes('유지');
+      }).length;
+      return (frozenCount / list.length) >= 0.9; 
+    };
+
+    const isPopFrozen = checkFrozen(p.popularTop30);
+    const isSalesFrozen = checkFrozen(p.salesTop30);
 
     if (isPopFrozen || isSalesFrozen) {
       freezeWarningEl.classList.remove('hidden');
