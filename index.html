@@ -537,7 +537,7 @@ function getIconUrlFromRow(row) {
   return '';
 }
 
-// [수정 완료] 과거 빈 데이터를 건너뛰고 가장 최신 날짜의 유효한 J열 아이콘 URL을 역순 탐색하여 반환
+// [최종 수정] 매출 DB와 인기 DB 양쪽을 모두 탐색하여 어느 한쪽에라도 아이콘 URL이 있으면 누락 없이 무조건 추출
 function getIconUrlForGame(gameTitle) {
   const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
   const findIn = (data) => {
