@@ -24,7 +24,7 @@ body { background:#080d18; }
 .summary-card-hover:hover { background:rgba(30,41,59,.9); transform: translateY(-2px); border-color: rgba(99, 102, 241, 0.4); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 select option { background-color: #0f172a; color: #f1f5f9; }
 
-/* 캘린더 전용 스타일 */
+/* 캘린더 전용 스타일 - 가독성 대폭 개선 */
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background-color: rgba(71,85,105,.3); border: 1px solid rgba(71,85,105,.3); border-radius: 0.5rem; overflow: hidden; }
 .cal-header { background: rgba(30,41,59,.9); text-align: center; padding: 10px 0; font-size: 11px; font-weight: 600; color: #94a3b8; }
 .cal-cell { background: #0f172a; min-height: 120px; padding: 6px; display: flex; flex-direction: column; gap: 4px; transition: background 0.2s; }
@@ -32,9 +32,11 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 .cal-cell.today { background: rgba(99, 102, 241, 0.1); box-shadow: inset 0 0 0 1px #6366f1; }
 .cal-date { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
 .cal-cell.today .cal-date { color: #818cf8; }
-.cal-item { font-size: 10px; padding: 3px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; border: 1px solid transparent; }
-.cal-item.mobile { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
-.cal-item.pc { background: rgba(100, 116, 139, 0.3); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.5); }
+/* 폰트 크기 상향, 굵기 상향, 자간 조정, 상하 패딩 확대로 글씨 깨짐 완화 */
+.cal-item { font-size: 11px; font-weight: 500; letter-spacing: -0.3px; padding: 4px 7px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; border: 1px solid transparent; }
+/* 컬러 대비 상향 (형광 에메랄드 / 밝은 화이트그레이) */
+.cal-item.mobile { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; border-color: rgba(16, 185, 129, 0.4); }
+.cal-item.pc { background: rgba(148, 163, 184, 0.25); color: #f1f5f9; border-color: rgba(148, 163, 184, 0.4); }
 .cal-empty { background: rgba(15,23,42,0.5); }
 </style>
 </head>
@@ -236,8 +238,9 @@ select option { background-color: #0f172a; color: #f1f5f9; }
         <span class="w-px h-4 bg-slate-600"></span>
         <span>PC/콘솔: <strong id="calStatPC" class="text-slate-300">0</strong></span>
       </div>
+      <!-- 필터 이름 텍스트 변경 반영 -->
       <label class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
-        <input type="checkbox" id="calMobileOnly" checked onchange="renderCalendar()" class="accent-indigo-500"> 모바일 포함 게임만 보기
+        <input type="checkbox" id="calMobileOnly" checked onchange="renderCalendar()" class="accent-indigo-500"> 모바일(멀티 플랫폼)만 보기
       </label>
     </div>
   </div>
@@ -1005,7 +1008,8 @@ function renderCalendar() {
               <span class="text-xs font-bold text-indigo-300">${w+1}주차 <span class="muted font-normal ml-1">(${currentCalMonth}/${actualStart} ~ ${currentCalMonth}/${actualEnd})</span></span>
               <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 border border-slate-700">총 ${weekGames.length}종 <span class="text-emerald-400 opacity-80 ml-1">M ${wMobileCnt}</span></span>
             </div>
-            <div class="text-[11px] muted leading-relaxed">
+            <!-- 가독성 개선: 글자색 밝게(text-slate-300), 줄간격 여유롭게(leading-relaxed) -->
+            <div class="text-xs text-slate-300 leading-relaxed mt-1">
               주요작: ${topTitles}${weekGames.length > 3 ? ` 등` : ''}
             </div>
           </div>
