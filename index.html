@@ -523,10 +523,11 @@ function latestDate(data){const ds=getDates(data);return ds[ds.length-1]||'';}
 
 function gameName(row) { return row ? String(row[3] || '').trim() || '-' : '-'; }
 function gameAppId(row) { return row ? String(row[4] || '').trim() : ''; }
-function getGameKey(row) { 
-  if (!row) return '-'; 
-  const name = String(row[3] || '').trim(); 
-  return name ? name.toLowerCase().replace(/\s+/g, '') : '-'; 
+
+function getGameKey(rowOrName) {
+  const name = typeof rowOrName === 'string' ? rowOrName : String(rowOrName?.[3] || '').trim();
+  if (!name || name === '-') return '-';
+  return name.toLowerCase().replace(/[\s\-_()\[\]~!@#$%^&*+=|\\:;"'<>,.?\/]+/g, '');
 }
 
 function getIconUrlFromRow(row) {
@@ -537,22 +538,22 @@ function getIconUrlFromRow(row) {
   return '';
 }
 
-// 매출 DB와 인기 DB 양쪽 모두에서 최신 날짜부터 역순으로 유효한 아이콘 URL 탐색 (우선순위 없음, 양방향 동등 탐색)
 function getIconUrlForGame(gameTitle) {
-  const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
+  const targetKey = getGameKey(gameTitle);
+  if (targetKey === '-') return '';
+  
   const findIn = (data) => {
     if (!data || !data.rows) return '';
-    const dates = getDates(data).reverse();
-    for (let d of dates) {
-      const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
-      if (row) {
+    const sortedRows = [...data.rows].sort((a, b) => dateValue(rowDate(b)) - dateValue(rowDate(a)));
+    for (const row of sortedRows) {
+      if (getGameKey(row) === targetKey) {
         const u = getIconUrlFromRow(row);
         if (u) return u;
       }
     }
     return '';
   };
-  return findIn(rawStore.sales) || findIn(rawStore.popular) || '';
+  return findIn(rawStore.popular) || findIn(rawStore.sales) || '';
 }
 
 function rankOf(row) {
@@ -623,11 +624,11 @@ function buildSnapshotFallback(salesData, popData) {
     return prevRank > itemRank ? `▲ ${prevRank - itemRank}` : `▼ ${itemRank - prevRank}`;
   };
   
-  const popularTop30 = popList.slice(0, 30).map(x => ({...x, change: getChange(x.name.toLowerCase().replace(/\s+/g, ''), x.rank, prevPopMap)}));
-  const salesTop30 = salesList.slice(0, 30).map(x => ({...x, change: getChange(x.name.toLowerCase().replace(/\s+/g, ''), x.rank, prevSalesMap)}));
+  const popularTop30 = popList.slice(0, 30).map(x => ({...x, change: getChange(getGameKey(x.name), x.rank, prevPopMap)}));
+  const salesTop30 = salesList.slice(0, 30).map(x => ({...x, change: getChange(getGameKey(x.name), x.rank, prevSalesMap)}));
   
   const salesChanges = salesList.map(x => {
-    const key = x.name.toLowerCase().replace(/\s+/g, ''), pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
+    const key = getGameKey(x.name), pRank = prevSalesMap.has(key) ? prevSalesMap.get(key).rank : null;
     return { ...x, diff: pRank !== null ? pRank - x.rank : 0, change: getChange(key, x.rank, prevSalesMap) };
   });
   
@@ -641,9 +642,10 @@ function buildSnapshotFallback(salesData, popData) {
     asOfDate: latest,
     popularTop10: popularTop30.slice(0, 10), salesTop10: salesTop30.slice(0, 10),
     popularTop30, salesTop30, 
-    newEntries: popList.filter(x => prev && !prevPopMap.has(x.name.toLowerCase().replace(/\s+/g, ''))).slice(0, 10).map(x => ({...x, change: 'NEW'})), 
+    newEntries: popList.filter(x => prev && !prevPopMap.has(getGameKey(x.name))).slice(0, 10).map(x => ({...x, change: 'NEW'})), 
     salesRising: salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10), 
-    salesFalling: salesChanges.filter(x => x.diff < 0).sort((a,b) => b.diff - a.diff).slice(0, 10), 
+    // [수정 완료] 하락 폭이 큰 순서(마이너스 값이 더 큰 것)가 위로 오도록 내림차순 정렬 수정 (a.diff - b.diff)
+    salesFalling: salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10), 
     popularGenre: countGenres(popList), salesGenre: countGenres(salesList)
   };
 }
@@ -664,7 +666,7 @@ function rankChangeBadge(change, large=false){
 }
 
 function getLatestScore(gameTitle) {
-  const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
+  const targetKey = getGameKey(gameTitle);
   const findIn = (data) => {
     if(!data || !data.rows) return null;
     const row = data.rows.find(r => rowDate(r) === latestDate(data) && getGameKey(r) === targetKey);
@@ -975,7 +977,8 @@ function drawChartShared(canvasId, prevInst, data, titles, colors, baseDate, dur
   const datasets=titles.filter(Boolean).map((t,i)=>({
     label:t, clip:false,
     data:dates.map(d=>{
-      const row=data.rows.find(r=>rowDate(r)===d && (getGameKey(r)===t.toLowerCase().replace(/\s+/g, '') || gameName(r)===t));
+      const targetKey = getGameKey(t);
+      const row=data.rows.find(r=>rowDate(r)===d && getGameKey(r) === targetKey);
       return row?rankOf(row):null;
     }),
     borderColor:colors[i%colors.length], backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:.25, spanGaps:true
@@ -1206,7 +1209,7 @@ function renderDatabase(view){
 
 function getMetricsForGame(data, gameNameTarget, recentDays=15){
   if(!data || !data.rows) return { currentRank:'-', change:'-', high:'-', avg:'-', top10:0, genre:'', pub:'', score:'-', appId:'' };
-  const dates = getDates(data), latest = dates[dates.length-1], targetKey = gameNameTarget.toLowerCase().replace(/\s+/g, '');
+  const dates = getDates(data), latest = dates[dates.length-1], targetKey = getGameKey(gameNameTarget);
   let currentRank='-', change='-', genre='', pub='', score='-', validRanks=[], top10Count=0, appId='';
   
   const latestRow = data.rows.find(r => rowDate(r) === latest && getGameKey(r) === targetKey);
@@ -1246,7 +1249,6 @@ function openGameDetail(targetName) {
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
   setText('detailScoreBadge', (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-');
 
-  // [핵심 수정] 찾아낸 아이콘 URL을 상세 패널 상단 <img> 태그에 정상 바인딩하도록 추가 완료
   const finalIconUrl = getIconUrlForGame(targetName);
   const iconEl = document.getElementById('detailAppIcon');
   if (iconEl) {
@@ -1272,7 +1274,7 @@ function openGameDetail(targetName) {
   setText('detailPopHigh', popMetrics.high + (popMetrics.high !== '-' ? '위' : '')); setText('detailTop10Days', (salesMetrics.top10 + popMetrics.top10 > 0) ? (salesMetrics.top10 + '일') : '0일');
 
   const allDates = [...new Set([...getDates(rawStore.sales), ...getDates(rawStore.popular)])].sort((a,b)=>dateValue(a)-dateValue(b)).slice(-15);
-  const targetKey = targetName.toLowerCase().replace(/\s+/g, '');
+  const targetKey = getGameKey(targetName);
   const getRankData = (data, d) => { const row = data?.rows?.find(r => rowDate(r) === d && getGameKey(r) === targetKey); return row ? rankOf(row) : null; };
   const getScoreData = (data, d) => { const row = data?.rows?.find(r => rowDate(r) === d && getGameKey(r) === targetKey); if(!row) return null; const val = parseFloat(scoreOf(row)); return (!isNaN(val) && val >= 0 && val <= 5) ? val : null; };
 
