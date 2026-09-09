@@ -531,13 +531,13 @@ function getGameKey(row) {
 
 function getIconUrlFromRow(row) {
   if (!row) return '';
-  // J열(인덱스 9)에 저장된 아이콘url 가져오기 (따옴표 제거)
   let url = String(row[9] || '').trim();
   if (url.startsWith("'")) url = url.substring(1);
   if (url && url !== '-' && url.startsWith('http')) return url;
   return '';
 }
 
+// 매출 및 인기 DB 양쪽 모두에서 해당 게임의 아이콘 URL을 교차 탐색하여 완벽 추출
 function getIconUrlForGame(gameTitle) {
   const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
   const findIn = (data) => {
@@ -741,7 +741,6 @@ function renderToday(){
     }
   }
 
-  // 1위 카드 데이터 바인딩 및 아이콘 연동 함수
   const bindTopCard = (item, prefix) => {
     const topEl = document.getElementById(`today${prefix}Top`);
     const metaEl = document.getElementById(`today${prefix}Meta`);
@@ -1247,6 +1246,7 @@ function openGameDetail(targetName) {
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
   setText('detailScoreBadge', (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-');
 
+  // 매출 및 인기 DB 통합 교차 탐색으로 아이콘 누락 원천 차단
   const finalIconUrl = getIconUrlForGame(targetName);
   const iconEl = document.getElementById('detailAppIcon');
   if (iconEl) {
