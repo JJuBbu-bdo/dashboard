@@ -537,7 +537,7 @@ function getIconUrlFromRow(row) {
   return '';
 }
 
-// [최종 수정] 매출 DB와 인기 DB 양쪽을 모두 탐색하여 어느 한쪽에라도 아이콘 URL이 있으면 누락 없이 무조건 추출
+// 매출 DB와 인기 DB 양쪽 모두에서 최신 날짜부터 역순으로 유효한 아이콘 URL 탐색 (우선순위 없음, 양방향 동등 탐색)
 function getIconUrlForGame(gameTitle) {
   const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
   const findIn = (data) => {
@@ -643,7 +643,7 @@ function buildSnapshotFallback(salesData, popData) {
     popularTop30, salesTop30, 
     newEntries: popList.filter(x => prev && !prevPopMap.has(x.name.toLowerCase().replace(/\s+/g, ''))).slice(0, 10).map(x => ({...x, change: 'NEW'})), 
     salesRising: salesChanges.filter(x => x.diff > 0).sort((a,b) => b.diff - a.diff).slice(0, 10), 
-    salesFalling: salesChanges.filter(x => x.diff < 0).sort((a,b) => a.diff - b.diff).slice(0, 10), 
+    salesFalling: salesChanges.filter(x => x.diff < 0).sort((a,b) => b.diff - a.diff).slice(0, 10), 
     popularGenre: countGenres(popList), salesGenre: countGenres(salesList)
   };
 }
@@ -1246,6 +1246,7 @@ function openGameDetail(targetName) {
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
   setText('detailScoreBadge', (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-');
 
+  // [핵심 수정] 찾아낸 아이콘 URL을 상세 패널 상단 <img> 태그에 정상 바인딩하도록 추가 완료
   const finalIconUrl = getIconUrlForGame(targetName);
   const iconEl = document.getElementById('detailAppIcon');
   if (iconEl) {
