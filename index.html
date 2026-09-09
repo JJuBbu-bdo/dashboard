@@ -119,8 +119,11 @@ select option { background-color: #0f172a; color: #f1f5f9; }
           <span>인기 1위</span>
           <span id="todayPopChange"></span>
         </div>
-        <div id="todayPopularTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
-        <div class="flex items-center justify-between text-[11px] text-emerald-300 mt-1 relative z-10">
+        <div class="flex items-center gap-2 mt-2 relative z-10">
+          <img id="todayPopularIcon" src="" class="w-7 h-7 rounded-lg object-cover bg-slate-800 hidden shrink-0" alt="">
+          <div id="todayPopularTop" class="text-[15px] font-bold truncate">-</div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-emerald-300 mt-1.5 relative z-10">
           <span id="todayPopularMeta" class="truncate">-</span>
           <span id="todayPopularScore" class="text-amber-400 font-semibold shrink-0 ml-1"></span>
         </div>
@@ -132,8 +135,11 @@ select option { background-color: #0f172a; color: #f1f5f9; }
           <span>매출 1위</span>
           <span id="todaySalesChange"></span>
         </div>
-        <div id="todaySalesTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
-        <div class="flex items-center justify-between text-[11px] text-indigo-300 mt-1 relative z-10">
+        <div class="flex items-center gap-2 mt-2 relative z-10">
+          <img id="todaySalesIcon" src="" class="w-7 h-7 rounded-lg object-cover bg-slate-800 hidden shrink-0" alt="">
+          <div id="todaySalesTop" class="text-[15px] font-bold truncate">-</div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-indigo-300 mt-1.5 relative z-10">
           <span id="todaySalesMeta" class="truncate">-</span>
           <span id="todaySalesScore" class="text-amber-400 font-semibold shrink-0 ml-1"></span>
         </div>
@@ -145,8 +151,11 @@ select option { background-color: #0f172a; color: #f1f5f9; }
           <span>인기순위 신규 진입</span>
           <span id="todayNewChange"></span>
         </div>
-        <div id="todayNewTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
-        <div class="flex items-center justify-between text-[11px] text-sky-300 mt-1 relative z-10">
+        <div class="flex items-center gap-2 mt-2 relative z-10">
+          <img id="todayNewIcon" src="" class="w-7 h-7 rounded-lg object-cover bg-slate-800 hidden shrink-0" alt="">
+          <div id="todayNewTop" class="text-[15px] font-bold truncate">-</div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-sky-300 mt-1.5 relative z-10">
           <span id="todayNewMeta" class="truncate">-</span>
           <span id="todayNewScore" class="text-amber-400 font-semibold shrink-0 ml-1"></span>
         </div>
@@ -158,8 +167,11 @@ select option { background-color: #0f172a; color: #f1f5f9; }
           <span>매출 최고 상승</span>
           <span id="todayRisingChange"></span>
         </div>
-        <div id="todayRisingTop" class="text-[15px] font-bold mt-2 truncate relative z-10">-</div>
-        <div class="flex items-center justify-between text-[11px] rank-up mt-1 relative z-10">
+        <div class="flex items-center gap-2 mt-2 relative z-10">
+          <img id="todayRisingIcon" src="" class="w-7 h-7 rounded-lg object-cover bg-slate-800 hidden shrink-0" alt="">
+          <div id="todayRisingTop" class="text-[15px] font-bold truncate">-</div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] rank-up mt-1.5 relative z-10">
           <span id="todayRisingMeta" class="truncate">-</span>
           <span id="todayRisingScore" class="text-amber-400 font-semibold shrink-0 ml-1"></span>
         </div>
@@ -369,12 +381,15 @@ select option { background-color: #0f172a; color: #f1f5f9; }
 <!-- GAME DETAIL SIDE PANEL -->
 <div id="detailOverlay" class="fixed inset-0 bg-black/70 z-40 hidden opacity-0 transition-opacity duration-300" onclick="closeGameDetail()"></div>
 <div id="detailPanel" class="fixed top-0 right-0 w-full max-w-[450px] h-full bg-slate-900 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 overflow-y-auto border-l border-slate-700 flex flex-col">
-  <div class="p-5 border-b border-slate-800 flex justify-between items-start sticky top-0 bg-slate-900/95 backdrop-blur z-20">
-    <div class="pr-4">
-      <div class="text-[11px] text-indigo-400 font-semibold mb-1 truncate" id="detailGenrePub">-</div>
-      <h2 class="text-xl font-bold leading-tight" id="detailTitle">-</h2>
+  <div class="p-5 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-slate-900/95 backdrop-blur z-20">
+    <div class="flex items-center gap-3 pr-2 min-w-0">
+      <img id="detailAppIcon" src="" class="w-11 h-11 rounded-xl object-cover bg-slate-800 hidden shrink-0 shadow" alt="">
+      <div class="min-w-0">
+        <div class="text-[11px] text-indigo-400 font-semibold mb-0.5 truncate" id="detailGenrePub">-</div>
+        <h2 class="text-lg font-bold leading-tight truncate" id="detailTitle">-</h2>
+      </div>
     </div>
-    <button onclick="closeGameDetail()" class="text-slate-400 hover:text-white mt-1 shrink-0"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <button onclick="closeGameDetail()" class="text-slate-400 hover:text-white shrink-0 ml-2"><i class="fa-solid fa-xmark text-xl"></i></button>
   </div>
   
   <div class="p-5 space-y-5 flex-1">
@@ -514,6 +529,32 @@ function getGameKey(row) {
   return name ? name.toLowerCase().replace(/\s+/g, '') : '-'; 
 }
 
+function getAppIdForGame(gameTitle) {
+  const targetKey = gameTitle.toLowerCase().replace(/\s+/g, '');
+  const findAppIdIn = (data) => {
+    if (!data || !data.rows) return '';
+    // 최신 날짜부터 역순으로 탐색하여 패키지명(r[4])이 존재하는지 확인
+    const dates = getDates(data).reverse();
+    for (let d of dates) {
+      const row = data.rows.find(r => rowDate(r) === d && getGameKey(r) === targetKey);
+      if (row) {
+        const id = gameAppId(row);
+        if (id && id !== '-' && id.includes('.')) return id;
+      }
+    }
+    return '';
+  };
+  return findAppIdIn(rawStore.sales) || findAppIdIn(rawStore.popular) || '';
+}
+
+function getAppIconUrl(gameTitle, appId = '') {
+  const resolvedId = appId || getAppIdForGame(gameTitle);
+  if (resolvedId && resolvedId !== '-' && resolvedId.includes('.')) {
+    return `https://play-lh.googleusercontent.com/${resolvedId}=w128-h128-rw`;
+  }
+  return '';
+}
+
 function rankOf(row) {
   if(!row) return null;
   const str = String(row[1] || '').replace(/[^0-9.-]/g,'');
@@ -567,7 +608,8 @@ function buildSnapshotFallback(salesData, popData) {
       rank: val.rank, name: String(r[3] || '-').trim(),
       genre: String(isNewSchema ? r[5] : r[4] || ''),
       publisher: String(isNewSchema ? r[6] : r[5] || ''),
-      score: scoreOf(r)
+      score: scoreOf(r),
+      appId: isNewSchema ? String(r[4] || '').trim() : ''
     };
   }).sort((a,b) => a.rank - b.rank);
   
@@ -640,10 +682,17 @@ function renderRankList(elId, items, {showMeta=true}={}) {
       ? `<span class="text-amber-400 font-semibold text-[11px] flex items-center shrink-0 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20"><i class="fa-solid fa-star text-[9px] mr-1"></i>${escapeHtml(scoreVal)}</span>` : '';
     let displayChange = it.change;
     if (elId === 'newEntriesList' && (!displayChange || displayChange === '-' || displayChange === '0')) displayChange = 'NEW';
+    
+    const iconUrl = getAppIconUrl(it.name, it.appId);
+    const iconHtml = iconUrl 
+      ? `<img src="${iconUrl}" class="w-6 h-6 rounded-md object-cover bg-slate-800 shrink-0" alt="" onerror="this.style.display='none'">` 
+      : '';
+
     return `
       <li class="flex items-center justify-between gap-2 py-2 border-b border-slate-900/70 last:border-0 hover:bg-slate-800/30 cursor-pointer rounded px-1.5 transition-colors" onclick="openGameDetail('${escapeAttr(it.name)}')">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
+        <div class="flex items-center gap-2.5 min-w-0 flex-1">
           <span class="text-[11px] muted w-5 text-right shrink-0">${escapeHtml(it.rank)}</span>
+          ${iconHtml}
           <div class="min-w-0 flex-1">
             <div class="text-xs font-medium truncate">${escapeHtml(it.name)}</div>
             ${showMeta && (it.genre || it.publisher) ? `<div class="text-[10px] muted truncate">${escapeHtml(it.genre || '')}${it.genre && it.publisher ? ' · ' : ''}${escapeHtml(it.publisher || '')}</div>` : ''}
@@ -691,37 +740,49 @@ function renderToday(){
     }
   }
 
-  const topPop=p.popularTop10[0];
-  setText('todayPopularTop', topPop ? topPop.name : '-');
-  setText('todayPopularMeta', topPop ? `${topPop.genre || '-'} · ${topPop.publisher || '-'}` : '-');
-  document.getElementById('todayPopChange').innerHTML = topPop ? rankChangeBadge(topPop.change) : '';
-  const popScore = topPop ? getLatestScore(topPop.name) : null;
-  document.getElementById('todayPopularScore').innerHTML = popScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${popScore}` : '';
-  document.getElementById('cardPopular1').onclick = () => { if(topPop) openGameDetail(topPop.name); };
+  // 1위 카드 데이터 바인딩 및 아이콘 연동 함수
+  const bindTopCard = (item, prefix) => {
+    const topEl = document.getElementById(`today${prefix}Top`);
+    const metaEl = document.getElementById(`today${prefix}Meta`);
+    const iconEl = document.getElementById(`today${prefix}Icon`);
+    const changeEl = document.getElementById(`today${prefix}Change`);
+    const scoreEl = document.getElementById(`today${prefix}Score`);
+    const cardEl = document.getElementById(`card${prefix}1`);
 
-  const topSales=p.salesTop10[0];
-  setText('todaySalesTop', topSales ? topSales.name : '-');
-  setText('todaySalesMeta', topSales ? `${topSales.genre || '-'} · ${topSales.publisher || '-'}` : '-');
-  document.getElementById('todaySalesChange').innerHTML = topSales ? rankChangeBadge(topSales.change) : '';
-  const salesScore = topSales ? getLatestScore(topSales.name) : null;
-  document.getElementById('todaySalesScore').innerHTML = salesScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${salesScore}` : '';
-  document.getElementById('cardSales1').onclick = () => { if(topSales) openGameDetail(topSales.name); };
+    if (!item) {
+      if(topEl) topEl.textContent = '-';
+      if(metaEl) metaEl.textContent = '-';
+      if(iconEl) iconEl.classList.add('hidden');
+      return;
+    }
 
-  const topNew = p.newEntries[0];
-  setText('todayNewTop', topNew ? topNew.name : '-');
-  setText('todayNewMeta', topNew ? `현재 ${topNew.rank}위 (최고 진입)` : '신규 진입 없음');
-  document.getElementById('todayNewChange').innerHTML = topNew ? '<span class="text-indigo-300 text-[11px] font-semibold">NEW</span>' : '';
-  const newScore = topNew ? getLatestScore(topNew.name) : null;
-  document.getElementById('todayNewScore').innerHTML = newScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${newScore}` : '';
-  document.getElementById('cardNew1').onclick = () => { if(topNew) openGameDetail(topNew.name); };
+    if(topEl) topEl.textContent = item.name;
+    if(metaEl) metaEl.textContent = `${item.genre || '-'} · ${item.publisher || '-'}`;
+    if(changeEl) changeEl.innerHTML = rankChangeBadge(item.change);
+    
+    const scoreVal = getLatestScore(item.name);
+    if(scoreEl) scoreEl.innerHTML = scoreVal ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${scoreVal}` : '';
+    
+    const iconUrl = getAppIconUrl(item.name, item.appId);
+    if (iconEl) {
+      if (iconUrl) {
+        iconEl.src = iconUrl;
+        iconEl.classList.remove('hidden');
+      } else {
+        iconEl.classList.add('hidden');
+      }
+    }
 
-  const topRise = p.salesRising[0];
-  setText('todayRisingTop', topRise ? topRise.name : '-');
-  setText('todayRisingMeta', topRise ? `현재 ${topRise.rank}위` : '전일 대비');
-  document.getElementById('todayRisingChange').innerHTML = topRise ? rankChangeBadge(topRise.change) : '';
-  const riseScore = topRise ? getLatestScore(topRise.name) : null;
-  document.getElementById('todayRisingScore').innerHTML = riseScore ? `<i class="fa-solid fa-star text-[10px] mr-0.5"></i>${riseScore}` : '';
-  document.getElementById('cardRising1').onclick = () => { if(topRise) openGameDetail(topRise.name); };
+    if(cardEl) cardEl.onclick = () => openGameDetail(item.name);
+  };
+
+  bindTopCard(p.popularTop10[0], 'Popular');
+  bindTopCard(p.salesTop10[0], 'Sales');
+  bindTopCard(p.newEntries[0], 'New');
+  if (p.newEntries[0]) document.getElementById('todayNewMeta').textContent = `현재 ${p.newEntries[0].rank}위 (최고 진입)`;
+  
+  bindTopCard(p.salesRising[0], 'Rising');
+  if (p.salesRising[0]) document.getElementById('todayRisingMeta').textContent = `현재 ${p.salesRising[0].rank}위`;
 
   if(todayGenreDonutInst) todayGenreDonutInst.destroy();
   const top3Genres = p.salesGenre.slice(0, 3), totalCount = p.salesGenre.reduce((sum, g) => sum + g.count, 0), donutColors = ['#fbbf24', '#34d399', '#818cf8'];
@@ -1185,7 +1246,19 @@ function openGameDetail(targetName) {
   document.getElementById('detailPopChange').innerHTML = rankChangeBadge(popMetrics.change, true);
   setText('detailScoreBadge', (salesMetrics.score !== '-' ? salesMetrics.score : null) || (popMetrics.score !== '-' ? popMetrics.score : null) || '-');
 
-  const finalAppId = salesMetrics.appId || popMetrics.appId || '', linkEl = document.getElementById('detailPlayStoreLink');
+  const finalAppId = salesMetrics.appId || popMetrics.appId || '';
+  const iconUrl = getAppIconUrl(targetName, finalAppId);
+  const iconEl = document.getElementById('detailAppIcon');
+  if (iconEl) {
+    if (iconUrl) {
+      iconEl.src = iconUrl;
+      iconEl.classList.remove('hidden');
+    } else {
+      iconEl.classList.add('hidden');
+    }
+  }
+
+  const linkEl = document.getElementById('detailPlayStoreLink');
   if (finalAppId && finalAppId !== '-' && finalAppId.includes('.')) {
       linkEl.href = `https://play.google.com/store/apps/details?id=${encodeURIComponent(finalAppId)}`;
       linkEl.innerHTML = `<i class="fa-brands fa-google-play text-emerald-400 text-lg"></i> Google Play 이동`;
