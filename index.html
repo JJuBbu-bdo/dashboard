@@ -1476,6 +1476,10 @@ function filterCurrentTable(){
 async function renderDatabase(view){
   const data = rawStore[view];
   if(!data) return;
+  // 탭을 처음 열 때도(연/월 드롭다운 구성을 위한 가벼운 날짜목록 조회가 끝날 때까지) 월 필터 변경 시와
+  // 동일하게 "불러오는 중" 메시지를 바로 보여줘서, 아무 표시 없이 잠깐 멈칫하는 것처럼 보이지 않게 한다.
+  const tbodyLoading = document.getElementById('tableBody');
+  if(tbodyLoading) tbodyLoading.innerHTML = '<tr><td colspan="100" class="text-center py-10 muted"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 데이터 불러오는 중...</td></tr>';
   const search = document.getElementById('tableSearch');
   if(search) search.placeholder = view==='newReleases' ? '게임명 / 퍼블리셔 검색' : '게임명 / 장르 / 퍼블리셔 검색';
   setText('dbTitle', {sales:'매출 순위 DB', popular:'인기 순위 DB', newReleases:'신작 정보 DB'}[view]);
