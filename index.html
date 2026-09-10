@@ -1322,22 +1322,50 @@ async function ensureSearchRangeLoaded(){
 async function onSearchYearChange() { await updateSearchMonthSelect(document.getElementById('searchYear').value); await ensureSearchRangeLoaded(); }
 async function onSearchMonthChange() { await updateSearchDaySelect(document.getElementById('searchYear').value, document.getElementById('searchMonth').value); await ensureSearchRangeLoaded(); }
 
-async function setupDateSelect(){
-  const store = currentView;
+// 탭을 열 때는 네트워크 요청 없이 "이미 로드되어 있는" 오늘/이번달 기준값으로 드롭다운을 채우고 바로 테이블을 보여준다.
+function setDefaultDateFilters(store){
+  const data = rawStore[store];
+  const loadedLatest = latestDate(data);
+  const today = new Date();
+  const y = loadedLatest ? loadedLatest.slice(0, 4) : String(today.getFullYear());
+  const m = loadedLatest ? loadedLatest.slice(5, 7) : pad2(today.getMonth()+1);
+  const ySel = document.getElementById('filterYear'), mSel = document.getElementById('filterMonth'), dSel = document.getElementById('filterDay');
+  if(ySel){ ySel.innerHTML = `<option value="${y}">${y}년</option>`; ySel.value = y; }
+  if(mSel){ mSel.innerHTML = `<option value="${m}">${Number(m)}월</option>`; mSel.value = m; }
+  if(dSel){
+    const days = getDates(data).filter(d => d.startsWith(`${y}-${m}`)).sort().reverse();
+    dSel.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
+    if(loadedLatest) dSel.value = loadedLatest;
+  }
+}
+
+// 과거 연/월을 선택할 수 있도록 드롭다운 "전체 옵션 목록"은 백그라운드에서 채운다 - 테이블은 이미 표시된 뒤라 지연이 있어도 화면엔 영향 없음.
+// 이 조회가 끝나기 전에 사용자가 다른 탭으로 이동했으면(currentView가 바뀌었으면) 그 결과는 반영하지 않는다(다른 탭 드롭다운을 덮어쓰는 경쟁 상태 방지).
+async function populateYearOptions(store){
   const availableDates = await getAvailableDates(store);
+  if(currentView !== store) return;
+  const ySel = document.getElementById('filterYear'), mSel = document.getElementById('filterMonth');
+  if(!ySel) return;
+  const keepY = ySel.value, keepM = mSel ? mSel.value : '';
   const yearsSet = new Set();
   availableDates.forEach(d => yearsSet.add(d.slice(0, 4)));
   let years = [...yearsSet].sort().reverse();
-  const ySel = document.getElementById('filterYear');
-  if(!ySel) return;
-  const data = rawStore[store];
-  const loadedLatest = latestDate(data);
-  const fallbackY = String(new Date().getFullYear());
-  const targetY = loadedLatest ? loadedLatest.slice(0, 4) : fallbackY, targetM = loadedLatest ? loadedLatest.slice(5, 7) : '', targetD = loadedLatest;
-  if(years.length===0) years=[targetY];
+  if(years.length===0) years=[keepY];
+  if(keepY && !years.includes(keepY)) years.push(keepY);
+  years = [...new Set(years)].sort().reverse();
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
-  ySel.value = years.includes(targetY) ? targetY : years[0];
-  await updateMonthSelect(ySel.value, targetM, targetD);
+  ySel.value = keepY;
+
+  if(mSel){
+    const monthsSet = new Set();
+    availableDates.forEach(d => { if(d.startsWith(keepY)) monthsSet.add(d.slice(5, 7)); });
+    let months = [...monthsSet].sort().reverse();
+    if(months.length===0) months=[keepM || pad2(new Date().getMonth()+1)];
+    if(keepM && !months.includes(keepM)) months.push(keepM);
+    months = [...new Set(months)].sort().reverse();
+    mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
+    mSel.value = keepM;
+  }
 }
 
 async function updateMonthSelect(year, selectedM='', selectedD=''){
@@ -1374,18 +1402,41 @@ async function updateDaySelect(year, month, selectedD=''){
 async function onYearChange(){ await updateMonthSelect(document.getElementById('filterYear').value); }
 async function onMonthChange(){ await updateDaySelect(document.getElementById('filterYear').value, document.getElementById('filterMonth').value); }
 
-async function setupNewReleasesDateSelect(){
+// 신작DB는 이미 전체를 불러와 두었으므로(fetchAllData 참고) 네트워크 요청 없이 바로 오늘 기준 년/월로 드롭다운을 채운다.
+function setDefaultNewReleasesFilters(){
+  const today = new Date();
+  const y = String(today.getFullYear()), m = pad2(today.getMonth()+1);
+  const ySel = document.getElementById('filterYear'), mSel = document.getElementById('filterMonth');
+  if(ySel){ ySel.innerHTML = `<option value="${y}">${y}년</option>`; ySel.value = y; }
+  if(mSel){ mSel.innerHTML = `<option value="${m}">${Number(m)}월</option>`; mSel.value = m; }
+}
+
+// 과거 연/월 선택용 드롭다운 전체 옵션은 백그라운드에서 채운다 (신작DB는 어차피 전체가 로드돼 있어 테이블 자체는 영향 없음).
+async function populateNewReleasesYearOptions(){
   const availableDates = await getAvailableDates('newReleases');
+  if(currentView !== 'newReleases') return;
+  const ySel = document.getElementById('filterYear'), mSel = document.getElementById('filterMonth');
+  if(!ySel) return;
+  const keepY = ySel.value, keepM = mSel ? mSel.value : '';
   const yearsSet = new Set();
   availableDates.forEach(d => yearsSet.add(d.slice(0, 4)));
   let years = [...yearsSet].sort().reverse();
-  const ySel = document.getElementById('filterYear');
-  if(!ySel) return;
-  const todayYM = new Date().toISOString().slice(0, 7), targetY = todayYM.slice(0, 4), targetM = todayYM.slice(5, 7);
-  if(years.length===0) years=[targetY];
+  if(years.length===0) years=[keepY];
+  if(keepY && !years.includes(keepY)) years.push(keepY);
+  years = [...new Set(years)].sort().reverse();
   ySel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
-  ySel.value = years.includes(targetY) ? targetY : years[0];
-  await updateNewReleasesMonthSelect(ySel.value, targetM);
+  ySel.value = keepY;
+
+  if(mSel){
+    const monthsSet = new Set();
+    availableDates.forEach(d => { if(d.startsWith(keepY)) monthsSet.add(d.slice(5, 7)); });
+    let months = [...monthsSet].sort().reverse();
+    if(months.length===0) months=[keepM];
+    if(keepM && !months.includes(keepM)) months.push(keepM);
+    months = [...new Set(months)].sort().reverse();
+    mSel.innerHTML = months.map(m => `<option value="${m}">${Number(m)}월</option>`).join('');
+    mSel.value = keepM;
+  }
 }
 
 async function updateNewReleasesMonthSelect(year, selectedM=''){
@@ -1473,13 +1524,9 @@ function filterCurrentTable(){
   setText('dbDataDate', currentView === 'newReleases' ? (`선택 기준 · ${yVal}년 ${Number(mVal)}월`) : (document.getElementById('filterDay').value ? `선택 기준 · ${document.getElementById('filterDay').value}` : `전체 ${data.rows.length.toLocaleString()}행`));
 }
 
-async function renderDatabase(view){
+function renderDatabase(view){
   const data = rawStore[view];
   if(!data) return;
-  // 탭을 처음 열 때도(연/월 드롭다운 구성을 위한 가벼운 날짜목록 조회가 끝날 때까지) 월 필터 변경 시와
-  // 동일하게 "불러오는 중" 메시지를 바로 보여줘서, 아무 표시 없이 잠깐 멈칫하는 것처럼 보이지 않게 한다.
-  const tbodyLoading = document.getElementById('tableBody');
-  if(tbodyLoading) tbodyLoading.innerHTML = '<tr><td colspan="100" class="text-center py-10 muted"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 데이터 불러오는 중...</td></tr>';
   const search = document.getElementById('tableSearch');
   if(search) search.placeholder = view==='newReleases' ? '게임명 / 퍼블리셔 검색' : '게임명 / 장르 / 퍼블리셔 검색';
   setText('dbTitle', {sales:'매출 순위 DB', popular:'인기 순위 DB', newReleases:'신작 정보 DB'}[view]);
@@ -1490,15 +1537,23 @@ async function renderDatabase(view){
     if(view === 'newReleases') {
       mobileWrap.classList.remove('hidden'); mobileWrap.classList.add('flex'); fDay.classList.add('hidden');
       fYear.onchange = onNewReleasesYearChange; fMonth.onchange = onNewReleasesMonthChange;
-      await setupNewReleasesDateSelect();
+      setDefaultNewReleasesFilters(); // 네트워크 요청 없이 오늘 기준으로 즉시 세팅
     } else {
       mobileWrap.classList.add('hidden'); mobileWrap.classList.remove('flex'); fDay.classList.remove('hidden');
       fYear.onchange = onYearChange; fMonth.onchange = onMonthChange;
       if(document.getElementById('mobileFilter')) document.getElementById('mobileFilter').checked = false;
-      await setupDateSelect();
+      setDefaultDateFilters(view); // 네트워크 요청 없이 이미 로드된 최신(오늘) 날짜로 즉시 세팅
     }
   }
   document.getElementById('tableSearch').value = '';
+
+  // 탭 전환 시 이미 로드되어 있는 데이터로 즉시 렌더링한다 — 이전 탭 데이터가 잠시 남아있는 것처럼 보이지 않도록,
+  // 추가 네트워크 요청(연/월 전체 옵션 조회) 없이 이 시점에 바로 테이블을 채운다.
+  filterCurrentTable();
+
+  // 과거 연/월을 선택할 수 있도록 드롭다운의 "전체 옵션 목록"만 백그라운드에서 뒤이어 채운다(테이블 표시는 막지 않음).
+  if(view === 'newReleases') populateNewReleasesYearOptions();
+  else populateYearOptions(view);
 }
 
 function getMetricsForGame(data, gameNameTarget, recentDays=15){
