@@ -518,6 +518,12 @@ function parseGviz(text){
   const start=text.indexOf('{'),end=text.lastIndexOf('}');
   if(start<0||end<start)throw new Error('Google Sheets 응답을 읽을 수 없습니다.');
   const json=JSON.parse(text.slice(start,end+1));
+  if(json.status === 'error'){
+    // WHERE 조건 쿼리가 컬럼 타입과 안 맞는 등의 이유로 거부된 경우. 여기서 명시적으로 던져야
+    // fetchSheetData의 '조건 없는 전체 재조회' 폴백이 정상적으로 발동한다(그냥 빈 결과로 조용히 넘어가지 않도록).
+    const msg = (json.errors && json.errors[0] && (json.errors[0].detailed_message || json.errors[0].message)) || 'Google Sheets 쿼리 오류';
+    throw new Error(msg);
+  }
   let cols=(json.table?.cols||[]).map(c=>c?.label||c?.id||'');
   let rows=(json.table?.rows||[]).map(r=>{
     const cells=r.c||[],arr=[];
@@ -616,6 +622,7 @@ function mergeRowsIntoStore(storeKey, newRows){
 // [온디맨드 로딩] 특정 (년,월)의 데이터가 아직 없으면 그 달치만 서버에 요청해서 rawStore에 병합한다.
 // 이미 로드된 달이면 즉시 반환(추가 네트워크 요청 없음), 동시에 같은 달을 여러 번 요청해도 fetch는 1번만 나간다.
 async function ensureMonthLoaded(storeKey, y, m){
+  if(storeKey === 'newReleases') return; // 신작DB는 초기 로딩 시 전체를 이미 불러와 두었으므로 추가 로드가 필요 없음
   const key = ymKey(y,m);
   if(loadedMonths[storeKey].has(key)) return;
   const inFlightKey = `${storeKey}:${key}`;
@@ -1519,18 +1526,14 @@ function getMetricsForGame(data, gameNameTarget, recentDays=15){
   return { currentRank, change, high, avg, top10: top10Count, validRanks, genre, pub, score, appId };
 }
 
-async function openGameDetail(targetName) {
-  const _todayForDetail = new Date();
-  await Promise.all([
-    ensureMonthLoaded('sales', _todayForDetail.getFullYear(), _todayForDetail.getMonth()+1),
-    ensureMonthLoaded('popular', _todayForDetail.getFullYear(), _todayForDetail.getMonth()+1)
-  ]);
-  if(_todayForDetail.getDate() <= 15){
-    const _prevYM = addMonthsYM(_todayForDetail.getFullYear(), _todayForDetail.getMonth()+1, -1);
-    await Promise.all([
-      ensureMonthLoaded('sales', _prevYM.y, _prevYM.m),
-      ensureMonthLoaded('popular', _prevYM.y, _prevYM.m)
-    ]);
+function openGameDetail(targetName) {
+  // 월초(1~15일)에는 "최근 15일" 추이가 전월로 걸칠 수 있어 전월 데이터를 백그라운드로 미리 받아둔다.
+  // 패널이 여는 속도에는 영향을 주지 않도록 await 하지 않는다(완료되면 다음번에 열 때부터 반영됨).
+  const _today = new Date();
+  if(_today.getDate() <= 15){
+    const _prevYM = addMonthsYM(_today.getFullYear(), _today.getMonth()+1, -1);
+    ensureMonthLoaded('sales', _prevYM.y, _prevYM.m).catch(()=>{});
+    ensureMonthLoaded('popular', _prevYM.y, _prevYM.m).catch(()=>{});
   }
   setText('detailTitle', targetName);
   const salesMetrics = getMetricsForGame(rawStore.sales, targetName, 15), popMetrics = getMetricsForGame(rawStore.popular, targetName, 15);
@@ -1609,26 +1612,25 @@ async function fetchAllData(){
   status.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> 동기화 중';
   btn.disabled=true;
   try{
-    // [기본 화면 = 오늘 기준] 매출/인기DB는 이번 달(+ 월초 전일비교용 버퍼)만, 신작DB는 이번 달+다음 달만 우선 로드한다.
-    // 그 외 기간은 사용자가 필터/달력을 조작할 때 ensureMonthLoaded()가 온디맨드로 불러온다.
+    // [기본 화면 = 오늘 기준] 매출/인기DB는 이번 달(+ 월초 전일비교용 버퍼)만 우선 로드한다.
+    // 신작DB는 매출/인기DB와 달리 크롤링으로 적재되는 시트라 날짜 컬럼이 실제 Date 타입이 아닐 수 있어
+    // (구글시트 WHERE 날짜조건이 시트마다 다르게 먹음) 조건부 조회 대신 항상 전체를 불러온다.
+    // 데이터량 자체가 매출/인기DB(일별 순위 누적)보다 훨씬 적어 전체 조회의 성능 영향은 미미하다.
+    // 그 외 기간(매출/인기DB의 과거 월)은 사용자가 필터/검색을 조작할 때 ensureMonthLoaded()가 온디맨드로 불러온다.
     const today = new Date();
     const ty=today.getFullYear(), tm=today.getMonth()+1;
     const salesPopularStart = dateMinusDaysStr(ty,tm,1,MONTH_START_BUFFER_DAYS);
-    const newReleasesStart = ymdStr(ty,tm,1);
-    const afterNext = addMonthsYM(ty,tm,2);
-    const newReleasesEndExclusive = ymdStr(afterNext.y, afterNext.m, 1);
 
     const [sales,popular,news]=await Promise.all([
       fetchSheetData(SHEETS.sales,1, `A >= date '${salesPopularStart}'`),
       fetchSheetData(SHEETS.popular,1, `A >= date '${salesPopularStart}'`),
-      fetchSheetData(SHEETS.newReleases,1, `A >= date '${newReleasesStart}' and A < date '${newReleasesEndExclusive}'`)
+      fetchSheetData(SHEETS.newReleases,1)
     ]);
     rawStore.sales=sales; rawStore.popular=popular; rawStore.newReleases=news;
 
-    const nextYM = addMonthsYM(ty,tm,1);
     loadedMonths.sales = new Set([ymKey(ty,tm)]);
     loadedMonths.popular = new Set([ymKey(ty,tm)]);
-    loadedMonths.newReleases = new Set([ymKey(ty,tm), ymKey(nextYM.y,nextYM.m)]);
+    // newReleases는 위에서 전체를 이미 불러왔으므로 별도 월별 로드 추적이 필요 없음 (ensureMonthLoaded가 no-op 처리)
 
     rebuildLookupIndices();
     currentCalYear = ty; currentCalMonth = tm;
